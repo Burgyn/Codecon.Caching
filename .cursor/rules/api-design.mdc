@@ -15,8 +15,6 @@ alwaysApply: true
   - For request and response create static class {Operation}{EntityName}{Request|Response} e.g.: CreateContactRequest. This static class contains sub class for DTO, Validation and extension method over IEndpointRouteBuilder for endpoint mapping.
   - For each module use Setup.cs class with extensions for DI registration and endpoints mapping. Like `.AddContacts()`, `.MapContacts()` (Map fucntions create group and add all endpoint)
   - Create or update .http file. Add requests for all created endpoints
-- **Validation:** Use exclusively the FluentValidation library for input validation
-- **Learning by Example:** Study and follow the conventions of existing endpoints in the application
 
 Example:
 
