@@ -1,0 +1,31 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: codecon-postgres
+    environment:
+      - POSTGRES_PASSWORD=YourStrong(!)Password
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=CodeconCaching
+    ports:
+      - "5432:5432"
+    volumes:
+      - codecon-postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: codecon-api
+    depends_on:
+      - postgres
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=CodeconCaching;Username=postgres;Password=YourStrong(!)Password
+    ports:
+      - "5000:80"
+    restart: unless-stopped
+
+volumes:
+  codecon-postgres-data: 
