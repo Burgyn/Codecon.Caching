@@ -22,9 +22,6 @@ alwaysApply: true
   - Current library versions
 - **Import Management:** Automatically add appropriate `using` declarations when integrating new classes
 
-### Build and Package Management
-- **Central Package Management**: When including external libraries, use central package management along with a Directory.Build.props file for managing package versions.
-
 ## Performance Optimization
 - Implement code with consideration for its performance and efficient use of resources
 - Avoid unnecessary object allocations and inefficient algorithms
