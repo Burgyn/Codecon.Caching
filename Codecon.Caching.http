@@ -1,0 +1,6 @@
+@Codecon.Caching_HostAddress = http://localhost:5166
+
+GET {{Codecon.Caching_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

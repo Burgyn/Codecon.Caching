@@ -1,0 +1,57 @@
+---
+description: API, domain layer, application logic
+globs: **/*.cs
+alwaysApply: true
+---
+# API Design - Guide
+- **Implementation:**
+  - Use minimal API approch for creating API
+  - Maintain a consistent style throughout the application
+- **Architectual Design Pattern:**
+  - Use vertical slice architecture to organize endpoints and their features.
+  - Each feature is separate slice
+  - Feature to Features folder
+  - Do not use MediatR and other CQRS framework
+  - For request and response create static class {Operation}{EntityName}{Request|Response} e.g.: CreateContactRequest. This static class contains sub class for DTO, Validation and extension method over IEndpointRouteBuilder for endpoint mapping.
+  - For each module use Setup.cs class with extensions for DI registration and endpoints mapping. Like `.AddContacts()`, `.MapContacts()` (Map fucntions create group and add all endpoint)
+  - Create or update .http file. Add requests for all created endpoints
+- **Validation:** Use exclusively the FluentValidation library for input validation
+- **Learning by Example:** Study and follow the conventions of existing endpoints in the application
+
+Example:
+
+public static class CreateContactRequest
+{
+    public class CreateContact
+    {
+        public required string FirstName { get; set; }
+        public required string LastName { get; set; }
+        public required string Email { get; set; }
+        public string? PhoneNumber { get; set; }
+        public string? Address { get; set; }
+    }
+
+    public class CreateContactValidator : AbstractValidator<CreateContact>
+    {
+        public CreateContactValidator()
+        {
+            RuleFor(x => x.FirstName).NotEmpty().MaximumLength(50);
+            RuleFor(x => x.LastName).NotEmpty().MaximumLength(50);
+            RuleFor(x => x.Email).NotEmpty().EmailAddress();
+        }
+    }
+
+    public static IEndpointConventionBuilder MapContactPost(this IEndpointRouteBuilder endpoints)
+        => endpoints.MapPost("/", OnPost)
+        .WithValidation<CreateContact>()
+        .WithDescription("Create a new contact");
+
+    static async Task<Results<Created<Contact>, BadRequest>> OnPost(CreateContact request, IContactRepository repository)
+    {
+        var contact = request.Adapt<Contact>();
+
+        await repository.Add(contact);
+
+        return TypedResults.Created($"/api/contacts/{contact.Id}", contact);
+    }
+}

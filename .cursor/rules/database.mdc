@@ -1,0 +1,9 @@
+---
+description: database configuration and usage
+globs: **/*Infrastructure*/**/*.cs, **/*Repository.cs, **/SqlScripts/**
+alwaysApply: false
+---
+# Database - Guide
+
+- **ORM:** For all database operations, exclusively use Entity Framework, do not use other ORM solutions
+- **Architectural Pattern:** Implement repository pattern for database access

@@ -1,0 +1,80 @@
+---
+description: programming, code analysis, design
+globs: 
+alwaysApply: true
+---
+# C# Coding Style
+
+1. Curly braces are written on a separate line. A single-line statement can be written without curly braces, but it must be on a separate line and properly indented. If it is part of an `if ... [else if ... else if ...] else` group, then either all branches have curly braces or none do - meaning no mixture of branches with and without braces. When defining the body of `get`, `set` methods of simple properties, curly braces with the statement can be on a single line (`get { return _value; }`).
+2. For indentation, use 4 spaces (not tabs).
+3. Private members are named in `_camelCase` and where possible, use `readonly`. Private and internal members have the prefix `_`. If a member is static, the keyword `readonly` comes after `static` (i.e., `static readonly`, not `readonly static`). We don't use public fields, and if there is a real need, their name is in `PascalCase` without a prefix.
+4. We don't use `this.` unless absolutely necessary.
+5. Always explicitly specify visibility, even if it is the same as the default (i.e., use `private string _foo` and not `string _foo`). Visibility is always the first modifier (`public abstract`, not `abstract public`).
+6. Namespace imports are always at the beginning of the file and sorted alphabetically. All imports are sorted alphabetically as a whole, including system namespaces (in Visual Studio, you can enable system namespaces to be placed at the beginning - we don't want this).
+7. Never use more than one empty line in a row anywhere.
+8. Remove unnecessary spaces at the end of lines. There are extensions for both full Visual Studio and VS Code that do this automatically.
+9. Use the var keyword only when the type of the variable is completely clear (`var stream = new FileStream(...)`, not `var stream = OpenStream(...)`).
+10. Write data types using language keywords and not BCL types (e.g., `int`, `string`, `float` instead of `Int32`, `String`, `Single`). This also applies to method calls (e.g., `int.Parse` instead of `Int32.Parse`).
+11. Constants are named in `PascalCase` style. Exceptions are _interop_ constants (constants from Windows API). These are written exactly as they are in the Windows API.
+12. Whenever relevant, use `nameof(...)` instead of a string `"..."`.
+13. All private member definitions are at the beginning of the class (type).
+14. Line length is limited to 130 characters. If it's longer (even by one character), it should be reasonably wrapped to two lines. _Exception are source files in unit test libraries, where long lines are relatively common (for example, due to informational texts if the test fails). There, it's possible to leave lines longer if wrapping would only worsen readability._
+15. When wrapping lines, operators `.`, `=>`, `?:`, `:` are placed at the beginning of the next line and not at the end of the previous one. An exception is with the `=>` operator when used in a method parameter that is a lambda function. If such a function has a body spanning multiple lines (its body is a block `{ ... }`), then the operator is at the end.
+```csharp
+public class LineBreaks
+{
+    public LineBreaks() : base()
+    {
+    }
+
+    public LineBreaks(string parameter1, string parameter2, string parameter3)
+        : base(parameter1, parameter2, parameter3)
+    {
+    }
+
+    private override void FooShort() => base.FooShort();
+
+    private override void FooWithNameTooLongForOneLine()
+        => base.FooWithNameTooLongForOneLine();
+
+    private void LambdaAsMethodArgument(IWebHostBuilder builder) {
+        builder.ConfigureServices(services =>
+        {
+            services.AddSingleton<IEmailSender, SmtpEmailSender>();
+            services.AddTransient<ILogger>(serviceProvider => new Logger());
+        });
+    }
+    
+    private void Bar()
+    {
+        services.AddIdentityServer()
+            .AddDeveloperSigningCredential()
+            .AddInMemoryPersistedGrants()
+            .AddInMemoryClients(clients.Value);
+    }
+
+    private void TernaryOperator(int count, string primaryKeyName)
+    {
+        int total = count > 0 ? count * _itemPrice : 0;
+
+        IndexSchema primaryKey = string.IsNullOrWhiteSpace(primaryKeyName)
+            ? null
+            : new IndexSchema(primaryKeyName, IndexType.PrimaryKey);
+    }
+}
+```
+16. If the method header is too long, its parameters are wrapped, with either all parameters wrapped (including the first one) or none (if it fits on one line).
+```csharp
+private void Foo(int param1, string param2, string param3)
+{
+}
+
+private void Bar(
+    int param1,
+    string param2,
+    string param3)
+{
+}
+```
+17. Public elements are described with documentation comments.
+18. General comments directly in the source code are written as needed. It's important that the comment explains **why** something is done the way it is.

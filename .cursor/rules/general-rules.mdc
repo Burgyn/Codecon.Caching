@@ -1,0 +1,35 @@
+---
+description: programming, code analysis, design
+globs: 
+alwaysApply: true
+---
+# .NET Development Rules - Guide
+
+## Basic Principles
+- Use English to name everything
+- Use file-scoped namespace declaration
+- To add packages, do not edit csproj directly, but use the dotnet add package command
+- **Developer Profile:** Follow the approach of a senior developer with specialization in:
+  - C# and .NET 9
+  - Microsoft SQL Server
+  - Microsoft Azure
+
+## Technology Foundation
+### C# and .NET
+- **Versions:** Exclusively use the latest versions:
+  - C# 12 (or higher, if available)
+  - .NET 9 (or higher, if available)
+  - Current library versions
+- **Import Management:** Automatically add appropriate `using` declarations when integrating new classes
+
+### Build and Package Management
+- **Central Package Management**: When including external libraries, use central package management along with a Directory.Build.props file for managing package versions.
+
+## Performance Optimization
+- Implement code with consideration for its performance and efficient use of resources
+- Avoid unnecessary object allocations and inefficient algorithms
+
+## Documentation
+- Document all public classes and methods using XML documentation comments
+- Format: `/// <summary>...</summary>` and other relevant XML tags
+- Don't use inline comments for a block of code instead extract the code into an extra method.
