@@ -11,6 +11,15 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddOpenApi();
 builder.Services.AddResponseCompression();
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", 
+        b => b
+            .AllowAnyOrigin()
+            .AllowAnyMethod()
+            .AllowAnyHeader());
+});
+
 // Add database with retry logic
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
@@ -38,12 +47,12 @@ if (app.Environment.IsDevelopment())
     await InitializeDatabaseAsync(app);
 }
 
-app.UseOutputCache();
+app.UseCors("AllowAll");
+app.UseOutputCache(); //👈 Add Output cache middleware
 app.UseResponseCompression();
 
-// Map API endpoints
+//👇 Map API endpoints
 app.MapProducts();
-
 
 app.Run();
 return;

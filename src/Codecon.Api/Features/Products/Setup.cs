@@ -73,7 +73,7 @@ public static class Setup
         return app;
     }
     
-    private static async Task<Results<Ok<List<Product>>, BadRequest<string>>> GetProductsByCategory(
+    private static async Task<Results<Ok<IEnumerable<Product>>, BadRequest<string>>> GetProductsByCategory(
         [FromQuery] string? category,
         [FromServices] AppDbContext dbContext,
         [FromServices] ILogger<AppDbContext> logger,
@@ -86,17 +86,17 @@ public static class Setup
         }
 
         logger.LogInformation("Fetching products in category '{Category}'", category);
-        
+
         var products = await dbContext.Products
             .Where(p => p.Category.StartsWith(category))
             .ToListAsync(cancellationToken);
 
         logger.LogInformation("Found {Count} products in category '{Category}'", products.Count, category);
 
-        return TypedResults.Ok(products);
+        return TypedResults.Ok(products.Take(100));
     }
     
-    private static async Task<Results<Ok<List<Product>>, BadRequest<string>>> GetProductsByCategoryETag(
+    private static async Task<Results<Ok<IEnumerable<Product>>, BadRequest<string>>> GetProductsByCategoryETag(
         [FromQuery] string? category,
         [FromServices] AppDbContext dbContext,
         [FromServices] ILogger<AppDbContext> logger,

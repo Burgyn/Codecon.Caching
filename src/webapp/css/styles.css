@@ -1,0 +1,50 @@
+/* Custom Styles for Codecon.Caching Demo */
+
+body {
+    padding-bottom: 2rem;
+}
+
+.navbar-brand {
+    font-weight: 600;
+}
+
+#request-timing {
+    font-size: 0.9rem;
+    padding: 0.5rem;
+    margin-right: 1rem;
+}
+
+.product-price:before {
+    content: "$";
+}
+
+.table th {
+    font-weight: 600;
+}
+
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.loading:after {
+    content: "Loading...";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 1rem 2rem;
+    border-radius: 0.25rem;
+    font-weight: 600;
+}
+
+#product-grid-container {
+    position: relative;
+    min-height: 200px;
+}
+
+.edit-product {
+    white-space: nowrap;
+} 
