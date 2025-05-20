@@ -1,4 +1,3 @@
-using Asp.Versioning;
 using Codecon.Api.Data;
 using Codecon.Api.Models;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -11,34 +10,66 @@ public static class Setup
 {
     public static IServiceCollection AddProducts(this IServiceCollection services)
     {
-        return services;
+        // 👇 Output cache policies
+        // services.AddOutputCache(options =>
+        // {
+        //     options.AddPolicy("Products", 
+        //         builder => 
+        //             builder.Expire(TimeSpan.FromSeconds(20))
+        //                 .Tag("Products"));
+        // });
+        
+        return services
+            .AddOutputCache() // 👈 Simply add the dependencies and use app.UseOutputCache() in Program.cs; 
+            .AddHttpContextAccessor();
     }
 
     public static IEndpointRouteBuilder MapProducts(this IEndpointRouteBuilder app)
     {
-        var versionSet = app.NewApiVersionSet()
-            .HasApiVersion(new ApiVersion(1))
-            .ReportApiVersions()
-            .Build();
-
         var group = app.MapGroup("/api/products")
-            .WithApiVersionSet(versionSet)
             .WithOpenApi()
             .WithTags("Products");
 
-        // Map V1 endpoints
-        group.MapGroup("v{version:apiVersion}")
-            .MapProductsV1();
-
+        group
+            .MapProductsV1() //  👈 Without caching
+            .MapProductsV2() //  👈 With output cache
+            .MapProductsV3(); // 👈 With etag caching
         return app;
     }
 
     private static IEndpointRouteBuilder MapProductsV1(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/", GetProductsByCategory)
-            .WithName("GetProductsByCategory")
-            .WithDescription("Get products by category")
-            .WithOpenApi();
+        //👇 Without caching
+        app.MapGet("/v1", GetProductsByCategory)
+            .WithName("GetProductsByCategory-v1")
+            .WithDescription("Get products by category - without caching");
+        return app;
+    }
+    
+    private static IEndpointRouteBuilder MapProductsV2(this IEndpointRouteBuilder app)
+    {
+        //👇 With output caching
+        app.MapGet("/v2", GetProductsByCategory)
+            .WithName("GetCachedProducts-v2")
+            .WithDescription("Get products by category - with output caching")
+            .CacheOutput(policy =>
+                policy
+                    .Expire(TimeSpan.FromSeconds(20))
+                    .Tag("products"));
+        return app;
+    }
+    
+    private static IEndpointRouteBuilder MapProductsV3(this IEndpointRouteBuilder app)
+    {
+        //👇 With output caching ETag
+        app.MapGet("/v3", GetProductsByCategoryETag)
+            .WithName("GetCachedProducts-v3")
+            .WithDescription("Get products by category - with output caching ETag")
+            .CacheOutput(policy => policy
+                .Expire(TimeSpan.FromSeconds(20))
+                .Tag("Products"));
+            //.CacheOutput("Products"); 👈 use defined policy
+
         return app;
     }
     
@@ -46,6 +77,7 @@ public static class Setup
         [FromQuery] string? category,
         [FromServices] AppDbContext dbContext,
         [FromServices] ILogger<AppDbContext> logger,
+        [FromServices] IHttpContextAccessor context,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(category))
@@ -56,11 +88,27 @@ public static class Setup
         logger.LogInformation("Fetching products in category '{Category}'", category);
         
         var products = await dbContext.Products
-            .Where(p => p.Category == category)
+            .Where(p => p.Category.StartsWith(category))
             .ToListAsync(cancellationToken);
 
         logger.LogInformation("Found {Count} products in category '{Category}'", products.Count, category);
 
         return TypedResults.Ok(products);
     }
-} 
+    
+    private static async Task<Results<Ok<List<Product>>, BadRequest<string>>> GetProductsByCategoryETag(
+        [FromQuery] string? category,
+        [FromServices] AppDbContext dbContext,
+        [FromServices] ILogger<AppDbContext> logger,
+        [FromServices] IHttpContextAccessor context,
+        CancellationToken cancellationToken)
+    {
+        if (context.HttpContext != null)
+        {
+            var etag = $"\"{Guid.NewGuid():n}\"";
+            context.HttpContext.Response.Headers.ETag = etag;
+        }
+
+        return await GetProductsByCategory(category, dbContext, logger, context, cancellationToken);
+    }
+}

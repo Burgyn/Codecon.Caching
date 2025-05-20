@@ -36,7 +36,7 @@ public static class DatabaseInitializer
 
             // Generate 150,000 products as requested
             const int batchSize = 5000;
-            const int totalProducts = 150_000;
+            const int totalProducts = 850_000;
             
             for (int i = 0; i < totalProducts; i += batchSize)
             {

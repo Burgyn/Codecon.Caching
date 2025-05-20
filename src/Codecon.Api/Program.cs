@@ -3,21 +3,13 @@ using Codecon.Api.Data;
 using Codecon.Api.Features.Products;
 using Microsoft.EntityFrameworkCore;
 using Polly;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-
-// Add API versioning
-builder.Services.AddApiVersioning(options =>
-{
-    options.DefaultApiVersion = new ApiVersion(1);
-    options.AssumeDefaultVersionWhenUnspecified = true;
-    options.ReportApiVersions = true;
-    options.ApiVersionReader = new UrlSegmentApiVersionReader();
-});
+builder.Services.AddOpenApi();
+builder.Services.AddResponseCompression();
 
 // Add database with retry logic
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -40,11 +32,24 @@ var app = builder.Build();
 // Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    app.MapOpenApi();
+    app.MapScalarApiReference();
     
-    // Initialize the database with test data for development
-    // Add retry logic for database initialization
+    await InitializeDatabaseAsync(app);
+}
+
+app.UseOutputCache();
+app.UseResponseCompression();
+
+// Map API endpoints
+app.MapProducts();
+
+
+app.Run();
+return;
+
+static async Task InitializeDatabaseAsync(WebApplication app)
+{
     var retryPolicy = Policy
         .Handle<Exception>()
         .WaitAndRetryAsync(
@@ -55,13 +60,6 @@ if (app.Environment.IsDevelopment())
                 var logger = app.Services.GetRequiredService<ILogger<Program>>();
                 logger.LogWarning(exception, "Error connecting to PostgreSQL. Retrying in {RetryTimeSpan}. Attempt {RetryCount}", timeSpan, retryCount);
             });
-
+    
     await retryPolicy.ExecuteAsync(async () => await DatabaseInitializer.InitializeAsync(app.Services));
 }
-
-app.UseHttpsRedirection();
-
-// Map API endpoints
-app.MapProducts();
-
-app.Run();
