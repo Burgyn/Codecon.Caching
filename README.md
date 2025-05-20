@@ -4,57 +4,115 @@ A demo project for demonstrating ASP.NET Core caching techniques using a product
 
 ## Overview
 
-This project demonstrates a simple products API with:
-- 150,000 product entries generated with AutoBogus
-- Search by category (intentionally without an index to demonstrate caching benefits)
-- API versioning to allow multiple caching implementations for comparison
-- Docker Compose setup for easy deployment with SQL Server
+This project demonstrates different caching strategies in a web application:
+- **No Caching** - Direct database queries on each request
+- **Output Caching** - Server-side caching of entire API responses
+- **ETag Caching** - Using HTTP ETag headers for client validation
+
+The demo includes:
+- Backend API (.NET 9) with three caching implementation versions
+- Simple frontend to visualize and compare caching performance
+- 850,000 product entries to demonstrate performance differences
+
+## Project Structure
+
+- `src/Codecon.Api/` - Backend API with minimal API approach and vertical slice architecture
+- `src/webapp/` - Frontend with vanilla JavaScript and Bootstrap
+- Docker setup for easy PostgreSQL database deployment
+
+## Prerequisites
+
+- .NET 9 SDK
+- Docker and Docker Compose (for the database)
+- A web browser with developer tools
+- Basic HTTP server (Python's built-in server works fine)
 
 ## Running the Application
 
-### Using Docker Compose
+### Step 1: Start the Database
 
 ```bash
-# Start the SQL Server and API containers
+# Start PostgreSQL in Docker
 docker-compose up -d
-
-# Access the API at http://localhost:5000
 ```
 
-### Running Locally
+### Step 2: Run the Backend API
 
 ```bash
-# Start only the SQL Server container
-docker-compose up -d mssql
-
-# Run the API locally
+# Navigate to the API project
 cd src/Codecon.Api
+
+# Run the API (it will be available at http://localhost:5000)
 dotnet run
 ```
 
-## API Endpoints
+The API automatically seeds the database with product data on first run. This process generates 850,000 products and might take several minutes.
 
-- `GET /api/products/v1?category={categoryName}` - Get products by category (V1 - No caching)
+### Step 3: Serve the Frontend
 
-The initial database seed will create 150,000 product records with various categories like:
+You can use any simple HTTP server to serve the frontend files. For example, with Python:
+
+```bash
+# Navigate to the webapp directory
+cd src/webapp
+
+# Start a simple HTTP server on port 8080
+python -m http.server 8080
+```
+
+Or with Python 3:
+```bash
+python3 -m http.server 8080
+```
+
+### Step 4: Access the Application
+
+Open your browser and navigate to:
+```
+http://localhost:8080
+```
+
+## Using the Demo
+
+1. The application starts in the "No Caching" tab
+2. Enter a category in the search field (e.g., "Electronics", "Books", "Clothing")
+3. Click the search button or press Enter
+4. Note the request time displayed in the top right
+5. Switch between different caching tabs to compare performance:
+   - **No Caching** - Each request goes directly to the database
+   - **Output Cache** - Server caches responses for 20 seconds
+   - **ETag Caching** - Uses HTTP ETags to avoid sending unchanged data
+
+## Available Product Categories
+
+The database is seeded with products in the following categories:
 - Electronics
 - Clothing
 - Home & Kitchen
 - Books
 - Sports
 - Toys
-- and more...
+- Beauty
+- Automotive
+- Health
+- Garden
+- Furniture
+- Jewelry
+- Office
+- Food
+- Tools
+- Baby
+- Pet Supplies
 
-## Project Structure
+## API Endpoints
 
-- The API uses minimal API approach with vertical slice architecture
-- Database seeding is done automatically on first run
-- Docker setup includes both SQL Server and the API for easy testing
+- `GET /api/products/v1?category={categoryName}` - Get products without caching
+- `GET /api/products/v2?category={categoryName}` - Get products with output caching (20 seconds)
+- `GET /api/products/v3?category={categoryName}` - Get products with ETag caching
 
-## Future Versions
+## Troubleshooting
 
-This project is designed for demonstrating various caching approaches in future versions:
-- V1: No caching (current)
-- V2: Memory caching (planned)
-- V3: Distributed caching (planned)
-- V4: Output caching (planned) 
+- **CORS Errors**: Make sure the backend API is running with CORS properly configured. The `UseCors` middleware should be placed before `UseOutputCache` in the pipeline.
+- **Database Connection**: If the database connection fails, check that PostgreSQL is running in Docker.
+- **API Connection**: Verify that the frontend is using the correct API URL (configured in `src/webapp/js/app.js`).
+- **First Run Time**: Initial database seeding of 850,000 products may take several minutes. Check API logs for progress. 
