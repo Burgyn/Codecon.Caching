@@ -48,7 +48,7 @@ class ProductGrid {
 
     /**
      * Set the API version to use
-     * @param {string} version - The API version (v1, v2, v3)
+     * @param {string} version - The API version (v1, v2, v3, v4)
      */
     setApiVersion(version) {
         this.apiVersion = version;
@@ -91,8 +91,8 @@ class ProductGrid {
         // Prepare headers for request
         const headers = new Headers();
         
-        // Add ETag header for v3 endpoint
-        if (this.apiVersion === 'v3' && this.lastEtag) {
+        // Add ETag header for v4 endpoint
+        if (this.apiVersion === 'v4' && this.lastEtag) {
             headers.append('If-None-Match', this.lastEtag);
         }
         
@@ -102,8 +102,8 @@ class ProductGrid {
                 const requestTime = Math.round(endTime - startTime);
                 this.updateRequestTiming(requestTime);
                 
-                // Store ETag for v3 endpoint
-                if (this.apiVersion === 'v3') {
+                // Store ETag for v4 endpoint
+                if (this.apiVersion === 'v4') {
                     const etag = response.headers.get('ETag');
                     if (etag) {
                         this.lastEtag = etag;

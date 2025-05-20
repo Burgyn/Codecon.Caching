@@ -5,12 +5,13 @@ A demo project for demonstrating ASP.NET Core caching techniques using a product
 ## Overview
 
 This project demonstrates different caching strategies in a web application:
-- **No Caching** - Direct database queries on each request
-- **Output Caching** - Server-side caching of entire API responses
-- **ETag Caching** - Using HTTP ETag headers for client validation
+- **No Caching (v1)** - Direct database queries on each request
+- **Response Caching (v2)** - In-memory caching of query results
+- **Output Caching (v3)** - Server-side caching of entire API responses
+- **ETag Caching (v4)** - Using HTTP ETag headers for client validation
 
 The demo includes:
-- Backend API (.NET 9) with three caching implementation versions
+- Backend API (.NET 9) with four caching implementation versions
 - Simple frontend to visualize and compare caching performance
 - 850,000 product entries to demonstrate performance differences
 
@@ -79,9 +80,10 @@ http://localhost:8080
 3. Click the search button or press Enter
 4. Note the request time displayed in the top right
 5. Switch between different caching tabs to compare performance:
-   - **No Caching** - Each request goes directly to the database
-   - **Output Cache** - Server caches responses for 20 seconds
-   - **ETag Caching** - Uses HTTP ETags to avoid sending unchanged data
+   - **No Caching (v1)** - Each request goes directly to the database
+   - **Response Cache (v2)** - Server caches query results in memory for 20 seconds
+   - **Output Cache (v3)** - Server caches entire HTTP responses for 20 seconds
+   - **ETag Caching (v4)** - Uses HTTP ETags to avoid sending unchanged data
 
 ## Available Product Categories
 
@@ -107,8 +109,9 @@ The database is seeded with products in the following categories:
 ## API Endpoints
 
 - `GET /api/products/v1?category={categoryName}` - Get products without caching
-- `GET /api/products/v2?category={categoryName}` - Get products with output caching (20 seconds)
-- `GET /api/products/v3?category={categoryName}` - Get products with ETag caching
+- `GET /api/products/v2?category={categoryName}` - Get products with response caching (memory cache)
+- `GET /api/products/v3?category={categoryName}` - Get products with output caching
+- `GET /api/products/v4?category={categoryName}` - Get products with ETag caching
 
 ## Troubleshooting
 
