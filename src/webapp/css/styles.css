@@ -198,6 +198,33 @@ h1 {
   z-index: 0;
 }
 
+/* Checkbox Styles */
+.form-check {
+  display: flex;
+  align-items: center;
+}
+
+.form-check-input {
+  width: 1.15em;
+  height: 1.15em;
+  margin-top: 0;
+  border-color: var(--gray-400);
+  cursor: pointer;
+}
+
+.form-check-input:checked {
+  background-color: var(--primary);
+  border-color: var(--primary);
+}
+
+.form-check-label {
+  padding-left: 0.5rem;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.9rem;
+  margin-bottom: 0;
+}
+
 /* Layout for full height table */
 .row {
   margin-right: 0;
