@@ -49,6 +49,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors("AllowAll");
 app.UseOutputCache(); //👈 Add Output cache middleware
+// app.UseResponseCaching(); //👈 Add response caching middleware
 app.UseResponseCompression();
 
 //👇 Map API endpoints

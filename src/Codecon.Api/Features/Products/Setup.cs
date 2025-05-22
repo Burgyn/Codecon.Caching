@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Net.Http.Headers;
 
 namespace Codecon.Api.Features.Products;
 
@@ -23,7 +24,8 @@ public static class Setup
         return services
             .AddMemoryCache()
             .AddOutputCache() // 👈 Simply add the dependencies and use app.UseOutputCache() in Program.cs; 
-            .AddHttpContextAccessor();
+            .AddHttpContextAccessor()
+            .AddResponseCaching(); // 👈 Add response caching services
     }
 
     public static IEndpointRouteBuilder MapProducts(this IEndpointRouteBuilder app)
@@ -34,7 +36,7 @@ public static class Setup
 
         group
             .MapProductsV1() // 👈 Without caching
-            .MapProductsV2() // 👈 With response cache (memory cache)
+            .MapProductsV2() // 👈 With response cache
             .MapProductsV3() // 👈 With output cache
             .MapProductsV4(); // 👈 With etag caching
         return app;
@@ -51,10 +53,10 @@ public static class Setup
 
     private static IEndpointRouteBuilder MapProductsV2(this IEndpointRouteBuilder app)
     {
-        //👇 With response caching (memory cache)
+        //👇 With response caching
         app.MapGet("/v2", GetProductsByCategoryWithResponseCache)
             .WithName("GetCachedProducts-v2")
-            .WithDescription("Get products by category - with response caching (memory cache)");
+            .WithDescription("Get products by category - with response caching");
         return app;
     }
     
@@ -76,11 +78,7 @@ public static class Setup
         //👇 With output caching ETag
         app.MapGet("/v4", GetProductsByCategoryETag)
             .WithName("GetCachedProducts-v4")
-            .WithDescription("Get products by category - with output caching ETag")
-            .CacheOutput(policy => policy
-                .Expire(TimeSpan.FromSeconds(20))
-                .Tag("Products"));
-            //.CacheOutput("Products"); 👈 use defined policy
+            .WithDescription("Get products by category - with ETag");
 
         return app;
     }
@@ -116,35 +114,17 @@ public static class Setup
         [FromServices] IHttpContextAccessor context,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(category))
+        if (context.HttpContext is not null)
         {
-            return TypedResults.BadRequest("Category parameter is required");
+            context.HttpContext.Response.GetTypedHeaders().CacheControl = new ()
+            {
+                Public = true,
+                MaxAge = TimeSpan.FromSeconds(20)
+            };
+            context.HttpContext.Response.Headers[HeaderNames.Vary] = "Accept-Encoding, category";
         }
 
-        // Create a cache key based on the category
-        var cacheKey = $"products_by_category_{category}";
-
-        // Try to get from cache first
-        if (memoryCache.TryGetValue(cacheKey, out List<Product> cachedProducts))
-        {
-            logger.LogInformation("Cache hit for category '{Category}'. Returning {Count} products from cache", 
-                category, cachedProducts.Count);
-            return TypedResults.Ok(cachedProducts.Take(100));
-        }
-
-        // Cache miss, fetch from database
-        logger.LogInformation("Cache miss for category '{Category}'. Fetching from database", category);
-
-        var products = await dbContext.Products
-            .Where(p => p.Category.StartsWith(category))
-            .ToListAsync(cancellationToken);
-
-        logger.LogInformation("Found {Count} products in category '{Category}'", products.Count, category);
-
-        // Store in cache for 20 seconds
-        memoryCache.Set(cacheKey, products, TimeSpan.FromSeconds(20));
-
-        return TypedResults.Ok(products.Take(100));
+        return await GetProductsByCategory(category, dbContext, logger, context, cancellationToken);
     }
     
     private static async Task<Results<Ok<IEnumerable<Product>>, BadRequest<string>>> GetProductsByCategoryETag(
@@ -156,7 +136,7 @@ public static class Setup
     {
         if (context.HttpContext != null)
         {
-            var etag = $"\"{Guid.NewGuid():n}\"";
+            var etag = $"\"{category}\"";
             context.HttpContext.Response.Headers.ETag = etag;
         }
 
