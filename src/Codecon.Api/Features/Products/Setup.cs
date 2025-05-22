@@ -81,11 +81,11 @@ public static class Setup
 
     private static IEndpointRouteBuilder MapProductsV5(this IEndpointRouteBuilder app)
     {
-        //👇 With output caching ETag
+        //👇 With Delta ETag caching
         app.MapGet("/v5", GetProductsByCategory)
             .WithName("GetCachedProducts-v5")
             .WithDescription("Get products by category - with ETag (Delta)")
-            .UseDelta();
+            .UseDelta(); // 👈 Use Delta middleware
 
         return app;
     }
