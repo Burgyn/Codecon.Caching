@@ -48,14 +48,42 @@ class ProductGrid {
 
     /**
      * Set the API version to use
-     * @param {string} version - The API version (v1, v2, v3, v4)
+     * @param {string} version - The API version (v1, v2, v3, v5)
      */
     setApiVersion(version) {
         this.apiVersion = version;
         this.lastEtag = null; // Reset ETag when changing API version
         
         // Update the UI to show the current version
-        document.getElementById('current-api-version').textContent = version;
+        const versionBadge = document.querySelector('#caching-info .badge');
+        if (versionBadge) {
+            versionBadge.textContent = version;
+        }
+        
+        // Update page title based on version
+        const pageTitles = {
+            v1: 'Products',
+            v2: 'Products',
+            v3: 'Products',
+            v5: 'Products'
+        };
+        
+        const icons = {
+            v1: 'bi-lightning-charge',
+            v2: 'bi-clock-history',
+            v3: 'bi-box',
+            v5: 'bi-tag'
+        };
+        
+        const titleEl = document.getElementById('current-page-title');
+        if (titleEl) {
+            const icon = document.createElement('i');
+            icon.className = `bi ${icons[version] || 'bi-grid-3x3-gap'} me-2`;
+            
+            titleEl.innerHTML = '';
+            titleEl.appendChild(icon);
+            titleEl.appendChild(document.createTextNode(pageTitles[version] || 'Products'));
+        }
         
         // If there was a previous search, re-run it with the new version
         if (this.lastSearchQuery) {
@@ -78,7 +106,7 @@ class ProductGrid {
      */
     searchProducts(category) {
         if (!category || category.trim() === '') {
-            alert('Please enter a category to search');
+            this.showToast('Please enter a category to search', 'warning');
             return;
         }
         
@@ -112,7 +140,7 @@ class ProductGrid {
                 
                 // Handle 304 Not Modified (cache hit for ETag)
                 if (response.status === 304) {
-                    alert('Data not modified since last request (ETag cache hit)');
+                    this.showToast('Data not modified since last request (ETag cache hit)', 'success');
                     this.container.classList.remove('loading');
                     return null;
                 }
@@ -131,7 +159,7 @@ class ProductGrid {
             })
             .catch(error => {
                 console.error('Error fetching products:', error);
-                alert('Error fetching products. See console for details.');
+                this.showToast('Error fetching products. See console for details.', 'danger');
                 this.container.classList.remove('loading');
             });
     }
@@ -157,7 +185,27 @@ class ProductGrid {
             
             rowClone.querySelector('.product-id').textContent = product.id;
             rowClone.querySelector('.product-name').textContent = product.name;
-            rowClone.querySelector('.product-category').textContent = product.category;
+            
+            // Update category to use badge
+            const categoryBadge = rowClone.querySelector('.product-category .badge');
+            if (categoryBadge) {
+                categoryBadge.textContent = product.category;
+                
+                // Set different badge colors based on category
+                const categoryClasses = {
+                    'Toys': 'bg-primary',
+                    'Electronics': 'bg-info',
+                    'Clothing': 'bg-success',
+                    'Books': 'bg-warning',
+                    'Sports': 'bg-danger',
+                    'Beauty': 'bg-secondary',
+                    'Home & Kitchen': 'bg-dark'
+                };
+                
+                const badgeClass = categoryClasses[product.category] || 'bg-secondary';
+                categoryBadge.className = `badge ${badgeClass}`;
+            }
+            
             rowClone.querySelector('.product-description').textContent = product.description || 'N/A';
             rowClone.querySelector('.product-price').textContent = product.price.toFixed(2);
             
@@ -178,7 +226,7 @@ class ProductGrid {
     handleEditProduct(product) {
         // This is just a placeholder for now
         console.log('Edit product:', product);
-        alert(`Edit functionality for product "${product.name}" will be implemented later.`);
+        this.showToast(`Edit functionality for product "${product.name}" will be implemented later.`, 'info');
     }
 
     /**
@@ -187,6 +235,18 @@ class ProductGrid {
      */
     updateRequestTiming(timeMs) {
         this.requestTimingElement.textContent = `Request time: ${timeMs} ms`;
+        
+        // Add color based on response time
+        this.requestTimingElement.className = 'badge';
+        if (timeMs < 50) {
+            this.requestTimingElement.classList.add('bg-success');
+        } else if (timeMs < 100) {
+            this.requestTimingElement.classList.add('bg-info');
+        } else if (timeMs < 200) {
+            this.requestTimingElement.classList.add('bg-warning');
+        } else {
+            this.requestTimingElement.classList.add('bg-danger');
+        }
     }
 
     /**
@@ -196,10 +256,64 @@ class ProductGrid {
         // For demonstration purposes only - this doesn't actually clear server cache
         // In a real application, you might have an endpoint to clear cache
         this.lastEtag = null;
-        alert(`Cache cleared for ${this.apiVersion}. The next request will fetch fresh data.`);
+        this.showToast(`Cache cleared for ${this.apiVersion}. The next request will fetch fresh data.`, 'warning');
         
         if (this.lastSearchQuery) {
             this.searchProducts(this.lastSearchQuery);
         }
+    }
+    
+    /**
+     * Show a toast notification
+     * @param {string} message - The message to display
+     * @param {string} type - The type of toast (success, warning, danger, info)
+     */
+    showToast(message, type = 'info') {
+        // Create toast container if it doesn't exist
+        let toastContainer = document.querySelector('.toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+            document.body.appendChild(toastContainer);
+        }
+        
+        // Create toast element
+        const toastId = `toast-${Date.now()}`;
+        const toast = document.createElement('div');
+        toast.className = `toast align-items-center border-0 show`;
+        toast.setAttribute('role', 'alert');
+        toast.setAttribute('aria-live', 'assertive');
+        toast.setAttribute('aria-atomic', 'true');
+        toast.id = toastId;
+        
+        // Set background color based on type
+        const bgClass = `bg-${type}`;
+        if (type === 'warning' || type === 'info') {
+            toast.classList.add(bgClass, 'text-dark');
+        } else {
+            toast.classList.add(bgClass, 'text-white');
+        }
+        
+        // Create toast content
+        const toastContent = `
+            <div class="d-flex">
+                <div class="toast-body">
+                    ${message}
+                </div>
+                <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        `;
+        toast.innerHTML = toastContent;
+        
+        // Add toast to container
+        toastContainer.appendChild(toast);
+        
+        // Auto remove after 3 seconds
+        setTimeout(() => {
+            const toastElement = document.getElementById(toastId);
+            if (toastElement) {
+                toastElement.remove();
+            }
+        }, 3000);
     }
 } 
