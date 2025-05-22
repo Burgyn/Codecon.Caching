@@ -2,6 +2,7 @@ using Codecon.Api.Data;
 using Codecon.Api.Models;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Net.Http.Headers;
@@ -163,6 +164,7 @@ public static class Setup
         [FromBody] UpdateProductRequest request,
         [FromServices] AppDbContext dbContext,
         [FromServices] ILogger<AppDbContext> logger,
+        [FromServices] IOutputCacheStore cacheStore,
         CancellationToken cancellationToken)
     {
         logger.LogInformation("Updating product with ID: {Id}", id);
@@ -181,9 +183,17 @@ public static class Setup
         product.Price = request.Price;
         product.Category = request.Category;
 
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
 
-        logger.LogInformation("Product with ID {Id} updated successfully", id);
+            logger.LogInformation("Product with ID {Id} updated successfully", id);
+        }
+        finally
+        {
+            await cacheStore.EvictByTagAsync("products", cancellationToken);
+            await cacheStore.EvictByTagAsync($"products:{id}", cancellationToken);
+        }
 
         return TypedResults.Ok(product);
     }
