@@ -91,8 +91,8 @@ class ProductGrid {
         // Prepare headers for request
         const headers = new Headers();
         
-        // Add ETag header for v4 endpoint
-        if (this.apiVersion === 'v4' && this.lastEtag) {
+        // Add ETag header for v5 endpoint
+        if (this.apiVersion === 'v5' && this.lastEtag) {
             headers.append('If-None-Match', this.lastEtag);
         }
         
@@ -102,8 +102,8 @@ class ProductGrid {
                 const requestTime = Math.round(endTime - startTime);
                 this.updateRequestTiming(requestTime);
                 
-                // Store ETag for v4 endpoint
-                if (this.apiVersion === 'v4') {
+                // Store ETag for v5 endpoint
+                if (this.apiVersion === 'v5') {
                     const etag = response.headers.get('ETag');
                     if (etag) {
                         this.lastEtag = etag;

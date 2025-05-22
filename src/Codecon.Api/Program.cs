@@ -4,12 +4,15 @@ using Codecon.Api.Features.Products;
 using Microsoft.EntityFrameworkCore;
 using Polly;
 using Scalar.AspNetCore;
+using Microsoft.AspNetCore.HttpLogging;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container
 builder.Services.AddOpenApi();
 builder.Services.AddResponseCompression();
+
+builder.Services.AddHttpLogging();
 
 builder.Services.AddCors(options =>
 {
@@ -48,6 +51,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AllowAll");
+app.UseHttpLogging(); // Add HTTP logging middleware
 app.UseOutputCache(); //👈 Add Output cache middleware
 // app.UseResponseCaching(); //👈 Add response caching middleware
 app.UseResponseCompression();
