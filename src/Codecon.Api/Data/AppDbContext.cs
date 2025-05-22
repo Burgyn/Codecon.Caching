@@ -32,7 +32,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Product>()
             .Property(p => p.Category)
             .IsRequired()
-            .HasMaxLength(50);
+            .HasMaxLength();
 
         // Configure PostgreSQL-specific behaviors
         modelBuilder.Entity<Product>()

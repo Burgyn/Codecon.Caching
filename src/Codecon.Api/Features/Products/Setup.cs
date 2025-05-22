@@ -17,8 +17,9 @@ public static class Setup
         // {
         //     options.AddPolicy("Products", 
         //         builder => 
-        //             builder.Expire(TimeSpan.FromSeconds(20))
-        //                 .Tag("Products"));
+        //             builder.Expire(TimeSpan.FromSeconds(50))
+        //                 .Tag("products")
+        //                 .AddNoCacheByRequestHeader());
         // });
 
         return services
@@ -67,10 +68,13 @@ public static class Setup
         app.MapGet("/v3", GetProductsByCategory)
             .WithName("GetCachedProducts-v3")
             .WithDescription("Get products by category - with output caching")
+            // .CacheOutput(policy => policy.Expire(TimeSpan.FromSeconds(50))) // 👈 Simple add policy
             .CacheOutput(policy =>
                 policy
-                    .Expire(TimeSpan.FromSeconds(20))
-                    .Tag("products"));
+                    .Expire(TimeSpan.FromSeconds(50))
+                    .Tag("products")
+                    .AddNoCacheByRequestHeader());
+        // .CacheOutput("Products") // 👈 Or use the predefined policy
         return app;
     }
 

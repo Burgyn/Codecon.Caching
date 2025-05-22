@@ -31,7 +31,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     {
         npgsqlOptions.EnableRetryOnFailure(
             maxRetryCount: 10,
-            maxRetryDelay: TimeSpan.FromSeconds(30),
+            maxRetryDelay: TimeSpan.FromSeconds(50),
             errorCodesToAdd: null);
     });
 });
