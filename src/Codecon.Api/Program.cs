@@ -1,10 +1,10 @@
-using Asp.Versioning;
 using Codecon.Api.Data;
 using Codecon.Api.Features.Products;
 using Microsoft.EntityFrameworkCore;
 using Polly;
 using Scalar.AspNetCore;
-using Microsoft.AspNetCore.HttpLogging;
+using Delta;
+using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,17 +16,18 @@ builder.Services.AddHttpLogging();
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", 
+    options.AddPolicy("AllowAll",
         b => b
             .AllowAnyOrigin()
             .AllowAnyMethod()
             .AllowAnyHeader());
 });
 
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
 // Add database with retry logic
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
-    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
     options.UseNpgsql(connectionString, npgsqlOptions =>
     {
         npgsqlOptions.EnableRetryOnFailure(
@@ -35,6 +36,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
             errorCodesToAdd: null);
     });
 });
+
+builder.Services.AddScoped(_ => new NpgsqlConnection(connectionString));
 
 // Add feature services
 builder.Services.AddProducts();
@@ -46,12 +49,12 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
     app.MapScalarApiReference();
-    
+
     await InitializeDatabaseAsync(app);
 }
 
 app.UseCors("AllowAll");
-app.UseHttpLogging(); // Add HTTP logging middleware
+app.UseHttpLogging();
 app.UseOutputCache(); //👈 Add Output cache middleware
 // app.UseResponseCaching(); //👈 Add response caching middleware
 app.UseResponseCompression();
@@ -72,8 +75,10 @@ static async Task InitializeDatabaseAsync(WebApplication app)
             onRetry: (exception, timeSpan, retryCount, context) =>
             {
                 var logger = app.Services.GetRequiredService<ILogger<Program>>();
-                logger.LogWarning(exception, "Error connecting to PostgreSQL. Retrying in {RetryTimeSpan}. Attempt {RetryCount}", timeSpan, retryCount);
+                logger.LogWarning(exception,
+                    "Error connecting to PostgreSQL. Retrying in {RetryTimeSpan}. Attempt {RetryCount}", timeSpan,
+                    retryCount);
             });
-    
+
     await retryPolicy.ExecuteAsync(async () => await DatabaseInitializer.InitializeAsync(app.Services));
 }

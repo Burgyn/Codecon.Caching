@@ -1,5 +1,6 @@
 using Codecon.Api.Data;
 using Codecon.Api.Models;
+using Delta;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
@@ -81,9 +82,10 @@ public static class Setup
     private static IEndpointRouteBuilder MapProductsV5(this IEndpointRouteBuilder app)
     {
         //👇 With output caching ETag
-        app.MapGet("/v5", GetProductsByCategoryETag)
+        app.MapGet("/v5", GetProductsByCategory)
             .WithName("GetCachedProducts-v5")
-            .WithDescription("Get products by category - with ETag");
+            .WithDescription("Get products by category - with ETag (Delta)")
+            .UseDelta();
 
         return app;
     }
@@ -134,23 +136,7 @@ public static class Setup
 
         return await GetProductsByCategory(category, dbContext, logger, context, cancellationToken);
     }
-
-    private static async Task<Results<Ok<IEnumerable<Product>>, BadRequest<string>>> GetProductsByCategoryETag(
-        [FromQuery] string? category,
-        [FromServices] AppDbContext dbContext,
-        [FromServices] ILogger<AppDbContext> logger,
-        [FromServices] IHttpContextAccessor context,
-        CancellationToken cancellationToken)
-    {
-        if (context.HttpContext != null)
-        {
-            var etag = $"\"{category}\"";
-            context.HttpContext.Response.Headers.ETag = etag;
-        }
-
-        return await GetProductsByCategory(category, dbContext, logger, context, cancellationToken);
-    }
-
+    
     private static IEndpointRouteBuilder MapProductsUpdate(this IEndpointRouteBuilder app)
     {
         app.MapPut("/update/{id}", UpdateProduct)
