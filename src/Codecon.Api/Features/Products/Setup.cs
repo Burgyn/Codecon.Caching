@@ -122,10 +122,10 @@ public static class Setup
                 Public = true,
                 MaxAge = TimeSpan.FromSeconds(20)
             };
-            context.HttpContext.Response.Headers[HeaderNames.Vary] = "Accept-Encoding, category";
+            context.HttpContext.Response.Headers[HeaderNames.Vary] = "Accept-Encoding";
             // In controller 👇
             // [HttpGet]
-            // [ResponseCache(Duration = 20, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "category" })]
+            // [ResponseCache(Duration = 20, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "Accept-Encoding" })]
             // public async Task<IActionResult> Get(string category) { ... }
             // 💁 Do not forget to add UseResponseCaching() in Program.cs
         }
