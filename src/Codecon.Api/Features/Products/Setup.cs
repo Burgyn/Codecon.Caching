@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Net.Http.Headers;
 
 namespace Codecon.Api.Features.Products;
@@ -39,7 +38,8 @@ public static class Setup
             .MapProductsV2() // 👈 With response cache
             .MapProductsV3() // 👈 With output cache
             .MapProductsV5() // 👈 With etag caching
-            .MapProductsUpdate(); // 👈 Edit endpoint
+            .MapProductsUpdate() // 👈 Edit endpoint
+            .MapCacheClear(); // 👈 Clear cache endpoint
         return app;
     }
 
@@ -91,10 +91,7 @@ public static class Setup
         [FromServices] IHttpContextAccessor context,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(category))
-        {
-            return TypedResults.BadRequest("Category parameter is required");
-        }
+        if (string.IsNullOrWhiteSpace(category)) return TypedResults.BadRequest("Category parameter is required");
 
         logger.LogInformation("Fetching products in category '{Category}'", category);
 
@@ -118,7 +115,7 @@ public static class Setup
     {
         if (context.HttpContext is not null)
         {
-            context.HttpContext.Response.GetTypedHeaders().CacheControl = new()
+            context.HttpContext.Response.GetTypedHeaders().CacheControl = new CacheControlHeaderValue
             {
                 Public = true,
                 MaxAge = TimeSpan.FromSeconds(20)
@@ -159,6 +156,46 @@ public static class Setup
         return app;
     }
 
+    private static IEndpointRouteBuilder MapCacheClear(this IEndpointRouteBuilder app)
+    {
+        app.MapPost("/clear-cache", ClearAllCache)
+            .WithName("ClearCache")
+            .WithDescription("Clear all product caches");
+
+        return app;
+    }
+
+    private static async Task<Results<Ok<string>, BadRequest<string>>> ClearAllCache(
+        [FromServices] IOutputCacheStore cacheStore,
+        [FromServices] ILogger<AppDbContext> logger,
+        CancellationToken cancellationToken)
+    {
+        logger.LogInformation("Clearing all product caches");
+
+        try
+        {
+            await EvictProductCaches(cacheStore, null, cancellationToken);
+            return TypedResults.Ok("All product caches cleared successfully");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error clearing product caches");
+            return TypedResults.BadRequest("Error clearing caches: " + ex.Message);
+        }
+    }
+
+    private static async Task EvictProductCaches(
+        IOutputCacheStore cacheStore,
+        int? productId,
+        CancellationToken cancellationToken)
+    {
+        // 👇 Evict by general products tag
+        await cacheStore.EvictByTagAsync("products", cancellationToken);
+
+        // 👇 If a specific product ID is provided, also evict that product's tag
+        if (productId.HasValue) await cacheStore.EvictByTagAsync($"products:{productId}", cancellationToken);
+    }
+
     private static async Task<Results<Ok<Product>, NotFound, BadRequest<string>>> UpdateProduct(
         int id,
         [FromBody] UpdateProductRequest request,
@@ -186,13 +223,11 @@ public static class Setup
         try
         {
             await dbContext.SaveChangesAsync(cancellationToken);
-
             logger.LogInformation("Product with ID {Id} updated successfully", id);
         }
         finally
         {
-            await cacheStore.EvictByTagAsync("products", cancellationToken);
-            await cacheStore.EvictByTagAsync($"products:{id}", cancellationToken);
+            await EvictProductCaches(cacheStore, id, cancellationToken);
         }
 
         return TypedResults.Ok(product);

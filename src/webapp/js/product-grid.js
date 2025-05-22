@@ -445,17 +445,46 @@ class ProductGrid {
     }
 
     /**
-     * Clear the cache (just a simulation for demo purposes)
+     * Clear the cache by calling the backend endpoint
      */
     clearCache() {
-        // For demonstration purposes only - this doesn't actually clear server cache
-        // In a real application, you might have an endpoint to clear cache
-        this.lastEtag = null;
-        this.showToast(`Cache cleared for ${this.apiVersion}. The next request will fetch fresh data.`, 'warning');
+        // Show loading state on the button
+        const clearCacheButton = document.getElementById('clear-cache-button');
+        const originalText = clearCacheButton.innerHTML;
+        clearCacheButton.disabled = true;
+        clearCacheButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Clearing...';
         
-        if (this.lastSearchQuery) {
-            this.searchProducts(this.lastSearchQuery);
-        }
+        // Call the clear-cache endpoint
+        fetch(`${this.apiBaseUrl}/clear-cache`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Reset the ETag value
+            this.lastEtag = null;
+            
+            // Show success message
+            this.showToast('Cache cleared successfully. Click "Search" to fetch fresh data.', 'success');
+            
+            // Don't automatically reload data - let the user do it manually
+        })
+        .catch(error => {
+            console.error('Error clearing cache:', error);
+            this.showToast('Error clearing cache. See console for details.', 'danger');
+        })
+        .finally(() => {
+            // Reset button state
+            clearCacheButton.disabled = false;
+            clearCacheButton.innerHTML = originalText;
+        });
     }
     
     /**
