@@ -38,7 +38,7 @@ public static class Setup
             .MapProductsV1() // 👈 Without caching
             .MapProductsV2() // 👈 With response cache
             .MapProductsV3() // 👈 With output cache
-            .MapProductsV4(); // 👈 With etag caching
+            .MapProductsV5(); // 👈 With etag caching
         return app;
     }
 
@@ -73,11 +73,11 @@ public static class Setup
         return app;
     }
     
-    private static IEndpointRouteBuilder MapProductsV4(this IEndpointRouteBuilder app)
+    private static IEndpointRouteBuilder MapProductsV5(this IEndpointRouteBuilder app)
     {
         //👇 With output caching ETag
-        app.MapGet("/v4", GetProductsByCategoryETag)
-            .WithName("GetCachedProducts-v4")
+        app.MapGet("/v5", GetProductsByCategoryETag)
+            .WithName("GetCachedProducts-v5")
             .WithDescription("Get products by category - with ETag");
 
         return app;
@@ -106,13 +106,14 @@ public static class Setup
         return TypedResults.Ok(products.Take(100));
     }
 
-    private static async Task<Results<Ok<IEnumerable<Product>>, BadRequest<string>>> GetProductsByCategoryWithResponseCache(
-        [FromQuery] string? category,
-        [FromServices] AppDbContext dbContext,
-        [FromServices] ILogger<AppDbContext> logger,
-        [FromServices] IMemoryCache memoryCache,
-        [FromServices] IHttpContextAccessor context,
-        CancellationToken cancellationToken)
+    private static async Task<Results<Ok<IEnumerable<Product>>, BadRequest<string>>> 
+        GetProductsByCategoryWithResponseCache(
+            [FromQuery] string? category,
+            [FromServices] AppDbContext dbContext,
+            [FromServices] ILogger<AppDbContext> logger,
+            [FromServices] IMemoryCache memoryCache,
+            [FromServices] IHttpContextAccessor context,
+            CancellationToken cancellationToken)
     {
         if (context.HttpContext is not null)
         {
@@ -122,6 +123,11 @@ public static class Setup
                 MaxAge = TimeSpan.FromSeconds(20)
             };
             context.HttpContext.Response.Headers[HeaderNames.Vary] = "Accept-Encoding, category";
+            // In controller 👇
+            // [HttpGet]
+            // [ResponseCache(Duration = 20, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "category" })]
+            // public async Task<IActionResult> Get(string category) { ... }
+            // 💁 Do not forget to add UseResponseCaching() in Program.cs
         }
 
         return await GetProductsByCategory(category, dbContext, logger, context, cancellationToken);

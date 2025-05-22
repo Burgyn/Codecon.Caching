@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', function() {
         v1: 'Get products by category - without caching',
         v2: 'Get products by category - with response caching (memory cache)',
         v3: 'Get products by category - with output caching',
-        v4: 'Get products by category - with output caching ETag'
+        v5: 'Get products by category - ETag cache with Delta'
     };
 
     // Initialize product grid component
@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', function() {
             v1: 'Products (No Caching)',
             v2: 'Products (Response Cache)',
             v3: 'Products (Output Cache)',
-            v4: 'Products (ETag Caching)'
+            v5: 'Products (ETag Caching)'
         };
         
         document.getElementById('current-page-title').textContent = titles[version] || titles.v1;
