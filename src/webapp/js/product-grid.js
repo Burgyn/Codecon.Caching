@@ -286,9 +286,139 @@ class ProductGrid {
      * @param {Object} product - The product to edit
      */
     handleEditProduct(product) {
-        // This is just a placeholder for now
-        console.log('Edit product:', product);
-        this.showToast(`Edit functionality for product "${product.name}" will be implemented later.`, 'info');
+        // Create modal for editing
+        const modalId = 'edit-product-modal';
+        let modal = document.getElementById(modalId);
+        
+        // Remove existing modal if it exists
+        if (modal) {
+            modal.remove();
+        }
+        
+        // Create new modal
+        modal = document.createElement('div');
+        modal.id = modalId;
+        modal.className = 'modal fade';
+        modal.tabIndex = -1;
+        modal.setAttribute('aria-labelledby', 'editProductModalLabel');
+        modal.setAttribute('aria-hidden', 'true');
+        
+        // Create modal content
+        modal.innerHTML = `
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="editProductModalLabel">Edit Product</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="edit-product-form">
+                            <input type="hidden" id="product-id" value="${product.id}">
+                            <div class="mb-3">
+                                <label for="product-name" class="form-label">Name</label>
+                                <input type="text" class="form-control" id="product-name" value="${product.name}" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="product-category" class="form-label">Category</label>
+                                <input type="text" class="form-control" id="product-category" value="${product.category}" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="product-description" class="form-label">Description</label>
+                                <textarea class="form-control" id="product-description" rows="3">${product.description || ''}</textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label for="product-price" class="form-label">Price</label>
+                                <input type="number" step="0.01" class="form-control" id="product-price" value="${product.price}" required>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="save-product-btn">Save Changes</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Add modal to document
+        document.body.appendChild(modal);
+        
+        // Initialize Bootstrap modal
+        const modalInstance = new bootstrap.Modal(modal);
+        modalInstance.show();
+        
+        // Add event listener for save button
+        document.getElementById('save-product-btn').addEventListener('click', () => {
+            this.saveProductChanges(modalInstance);
+        });
+    }
+    
+    /**
+     * Save product changes
+     * @param {bootstrap.Modal} modalInstance - The modal instance
+     */
+    saveProductChanges(modalInstance) {
+        // Get form values
+        const id = document.getElementById('product-id').value;
+        const name = document.getElementById('product-name').value;
+        const category = document.getElementById('product-category').value;
+        const description = document.getElementById('product-description').value;
+        const price = parseFloat(document.getElementById('product-price').value);
+        
+        // Validate form
+        if (!name || !category || isNaN(price)) {
+            this.showToast('Please fill in all required fields with valid values', 'warning');
+            return;
+        }
+        
+        // Create product object
+        const updatedProduct = {
+            name,
+            category,
+            description,
+            price
+        };
+        
+        // Show loading state
+        const saveButton = document.getElementById('save-product-btn');
+        const originalText = saveButton.textContent;
+        saveButton.disabled = true;
+        saveButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
+        
+        // Send PUT request to update the product using the common update endpoint
+        fetch(`${this.apiBaseUrl}/update/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(updatedProduct)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Close modal
+            modalInstance.hide();
+            
+            // Show success message
+            this.showToast('Product updated successfully', 'success');
+            
+            // Refresh product list to show updated data
+            if (this.lastSearchQuery) {
+                this.searchProducts(this.lastSearchQuery);
+            }
+        })
+        .catch(error => {
+            console.error('Error updating product:', error);
+            this.showToast('Error updating product. See console for details.', 'danger');
+            
+            // Reset button
+            saveButton.disabled = false;
+            saveButton.textContent = originalText;
+        });
     }
 
     /**

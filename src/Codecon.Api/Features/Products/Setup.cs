@@ -20,9 +20,8 @@ public static class Setup
         //             builder.Expire(TimeSpan.FromSeconds(20))
         //                 .Tag("Products"));
         // });
-        
+
         return services
-            .AddMemoryCache()
             .AddOutputCache() // 👈 Simply add the dependencies and use app.UseOutputCache() in Program.cs; 
             .AddHttpContextAccessor()
             .AddResponseCaching(); // 👈 Add response caching services
@@ -38,7 +37,8 @@ public static class Setup
             .MapProductsV1() // 👈 Without caching
             .MapProductsV2() // 👈 With response cache
             .MapProductsV3() // 👈 With output cache
-            .MapProductsV5(); // 👈 With etag caching
+            .MapProductsV5() // 👈 With etag caching
+            .MapProductsUpdate(); // 👈 Edit endpoint
         return app;
     }
 
@@ -59,7 +59,7 @@ public static class Setup
             .WithDescription("Get products by category - with response caching");
         return app;
     }
-    
+
     private static IEndpointRouteBuilder MapProductsV3(this IEndpointRouteBuilder app)
     {
         //👇 With output caching
@@ -72,7 +72,7 @@ public static class Setup
                     .Tag("products"));
         return app;
     }
-    
+
     private static IEndpointRouteBuilder MapProductsV5(this IEndpointRouteBuilder app)
     {
         //👇 With output caching ETag
@@ -82,7 +82,7 @@ public static class Setup
 
         return app;
     }
-    
+
     private static async Task<Results<Ok<IEnumerable<Product>>, BadRequest<string>>> GetProductsByCategory(
         [FromQuery] string? category,
         [FromServices] AppDbContext dbContext,
@@ -99,6 +99,7 @@ public static class Setup
 
         var products = await dbContext.Products
             .Where(p => p.Category.StartsWith(category))
+            .OrderBy(p => p.Id)
             .ToListAsync(cancellationToken);
 
         logger.LogInformation("Found {Count} products in category '{Category}'", products.Count, category);
@@ -106,18 +107,17 @@ public static class Setup
         return TypedResults.Ok(products.Take(100));
     }
 
-    private static async Task<Results<Ok<IEnumerable<Product>>, BadRequest<string>>> 
+    private static async Task<Results<Ok<IEnumerable<Product>>, BadRequest<string>>>
         GetProductsByCategoryWithResponseCache(
             [FromQuery] string? category,
             [FromServices] AppDbContext dbContext,
             [FromServices] ILogger<AppDbContext> logger,
-            [FromServices] IMemoryCache memoryCache,
             [FromServices] IHttpContextAccessor context,
             CancellationToken cancellationToken)
     {
         if (context.HttpContext is not null)
         {
-            context.HttpContext.Response.GetTypedHeaders().CacheControl = new ()
+            context.HttpContext.Response.GetTypedHeaders().CacheControl = new()
             {
                 Public = true,
                 MaxAge = TimeSpan.FromSeconds(20)
@@ -132,7 +132,7 @@ public static class Setup
 
         return await GetProductsByCategory(category, dbContext, logger, context, cancellationToken);
     }
-    
+
     private static async Task<Results<Ok<IEnumerable<Product>>, BadRequest<string>>> GetProductsByCategoryETag(
         [FromQuery] string? category,
         [FromServices] AppDbContext dbContext,
@@ -147,5 +147,52 @@ public static class Setup
         }
 
         return await GetProductsByCategory(category, dbContext, logger, context, cancellationToken);
+    }
+
+    private static IEndpointRouteBuilder MapProductsUpdate(this IEndpointRouteBuilder app)
+    {
+        app.MapPut("/update/{id}", UpdateProduct)
+            .WithName("UpdateProduct")
+            .WithDescription("Update a product");
+
+        return app;
+    }
+
+    private static async Task<Results<Ok<Product>, NotFound, BadRequest<string>>> UpdateProduct(
+        int id,
+        [FromBody] UpdateProductRequest request,
+        [FromServices] AppDbContext dbContext,
+        [FromServices] ILogger<AppDbContext> logger,
+        CancellationToken cancellationToken)
+    {
+        logger.LogInformation("Updating product with ID: {Id}", id);
+
+        var product = await dbContext.Products
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+
+        if (product == null)
+        {
+            logger.LogWarning("Product with ID {Id} not found", id);
+            return TypedResults.NotFound();
+        }
+
+        product.Name = request.Name;
+        product.Description = request.Description;
+        product.Price = request.Price;
+        product.Category = request.Category;
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        logger.LogInformation("Product with ID {Id} updated successfully", id);
+
+        return TypedResults.Ok(product);
+    }
+
+    public class UpdateProductRequest
+    {
+        public required string Name { get; set; }
+        public string? Description { get; set; }
+        public decimal Price { get; set; }
+        public required string Category { get; set; }
     }
 }

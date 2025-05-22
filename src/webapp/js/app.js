@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const apiBaseUrl = 'http://localhost:5000/api/products';
     const descriptions = {
         v1: 'Get products by category - without caching',
-        v2: 'Get products by category - with response caching (memory cache)',
+        v2: 'Get products by category - with response caching',
         v3: 'Get products by category - with output caching',
         v5: 'Get products by category - ETag cache with Delta'
     };

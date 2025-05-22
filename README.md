@@ -109,7 +109,7 @@ The database is seeded with products in the following categories:
 ## API Endpoints
 
 - `GET /api/products/v1?category={categoryName}` - Get products without caching
-- `GET /api/products/v2?category={categoryName}` - Get products with response caching (memory cache)
+- `GET /api/products/v2?category={categoryName}` - Get products with response caching
 - `GET /api/products/v3?category={categoryName}` - Get products with output caching
 - `GET /api/products/v4?category={categoryName}` - Get products with ETag caching
 
