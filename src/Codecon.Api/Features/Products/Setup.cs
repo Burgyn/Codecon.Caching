@@ -6,18 +6,19 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Hybrid;
-using Microsoft.Extensions.Primitives;
+using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Net.Http.Headers;
 using ZiggyCreatures.Caching.Fusion;
+using ZiggyCreatures.Caching.Fusion.Serialization.SystemTextJson;
 
 namespace Codecon.Api.Features.Products;
 
 public static class Setup
 {
-    public static IServiceCollection AddProducts(this IServiceCollection services)
+    public static IServiceCollection AddProducts(this WebApplicationBuilder builder)
     {
         // 👇 Output cache policies
-        // services.AddOutputCache(options =>
+        // builder.Services.AddOutputCache(options =>
         // {
         //     options.AddPolicy("Products",
         //         builder =>
@@ -26,17 +27,32 @@ public static class Setup
         //                 .AddNoCacheByRequestHeader());
         // });
 
-        services
+        builder.Services
             .AddOutputCache() // 👈 Simply add the dependencies and use app.UseOutputCache() in Program.cs;
             .AddHttpContextAccessor()
             .AddResponseCaching(); // 👈 Add response caching services
 
-        //👇 Add FusionCache services (as HybridCache)
-        services
+        //👇 Add FusionCache services (as HybridCache) with Redis as second-level cache
+        builder.Services
             .AddFusionCache()
+            .WithDistributedCache(_ =>
+            {
+                // 👇 Configure the second level of cache
+                var connectionString = builder.Configuration.GetConnectionString("Redis");
+                var options = new RedisCacheOptions { Configuration = connectionString };
+
+                return new RedisCache(options);
+            })
+            .WithOptions(options =>
+            {
+                // 👇 configure default duration for L1 & L2 Cache
+                options.DefaultEntryOptions.Duration = TimeSpan.FromSeconds(50);
+                options.DefaultEntryOptions.DistributedCacheDuration = TimeSpan.FromMinutes(5);
+            })
+            .WithSerializer(new FusionCacheSystemTextJsonSerializer())
             .AsHybridCache();
 
-        return services;
+        return builder.Services;
     }
 
     public static IEndpointRouteBuilder MapProducts(this IEndpointRouteBuilder app)
@@ -145,7 +161,7 @@ public static class Setup
             context.HttpContext.Response.GetTypedHeaders().CacheControl = new CacheControlHeaderValue
             {
                 Public = true,
-                MaxAge = TimeSpan.FromSeconds(20)
+                MaxAge = TimeSpan.FromSeconds(50)
             };
             context.HttpContext.Response.Headers[HeaderNames.Vary] = "Accept-Encoding";
             // In controller 👇
@@ -175,9 +191,12 @@ public static class Setup
             return await GetProductsByCategory(category, dbContext, logger, context, cancellationToken);
         }
 
-        // 👇 Use HybridCache to cache results
-        return await cache.GetOrCreateAsync($"products:{category}", // 👈 It isn't good practice to use the user input as a key, but it's fine for this demo
-            async (token) => await GetProductsByCategory(category, dbContext, logger, context, token), // 👈 Use factory method to get the data
+        logger.LogInformation("Fetching products from hybrid cache for category '{Category}'", category);
+
+        // 👇 Use HybridCache to cache results with Redis as the second level
+        return await cache.GetOrCreateAsync(
+            $"products:{category}", // 👈 It isn't good practice to use the user input as a key. It's only for demo purpose.
+            async (token) => await GetProductsByCategory(category, dbContext, logger, context, token), // 👈 Use factory method to get the data.
             tags: ["products"],
             cancellationToken: cancellationToken);
     }

@@ -3,7 +3,6 @@ using Codecon.Api.Features.Products;
 using Microsoft.EntityFrameworkCore;
 using Polly;
 using Scalar.AspNetCore;
-using Delta;
 using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -40,7 +39,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped(_ => new NpgsqlConnection(connectionString));
 
 // Add feature services
-builder.Services.AddProducts();
+builder.AddProducts();
 
 var app = builder.Build();
 

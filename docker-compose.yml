@@ -12,6 +12,16 @@ services:
       - codecon-postgres-data:/var/lib/postgresql/data
     restart: unless-stopped
 
+  redis:
+    image: redis:alpine
+    container_name: codecon-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - codecon-redis-data:/data
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
   api:
     build:
       context: .
@@ -19,13 +29,16 @@ services:
     container_name: codecon-api
     depends_on:
       - postgres
+      - redis
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:80
       - ConnectionStrings__DefaultConnection=Host=postgres;Database=CodeconCaching;Username=postgres;Password=YourStrong(!)Password
+      - ConnectionStrings__Redis=redis:6379
     ports:
       - "5000:80"
     restart: unless-stopped
 
 volumes:
-  codecon-postgres-data: 
+  codecon-postgres-data:
+  codecon-redis-data: 
