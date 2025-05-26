@@ -6,10 +6,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Hybrid;
-using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Net.Http.Headers;
 using ZiggyCreatures.Caching.Fusion;
-using ZiggyCreatures.Caching.Fusion.Serialization.SystemTextJson;
 
 namespace Codecon.Api.Features.Products;
 
@@ -35,21 +33,6 @@ public static class Setup
         //👇 Add FusionCache services (as HybridCache) with Redis as second-level cache
         builder.Services
             .AddFusionCache()
-            .WithDistributedCache(_ =>
-            {
-                // 👇 Configure the second level of cache
-                var connectionString = builder.Configuration.GetConnectionString("Redis");
-                var options = new RedisCacheOptions { Configuration = connectionString };
-
-                return new RedisCache(options);
-            })
-            .WithOptions(options =>
-            {
-                // 👇 configure default duration for L1 & L2 Cache
-                options.DefaultEntryOptions.Duration = TimeSpan.FromSeconds(50);
-                options.DefaultEntryOptions.DistributedCacheDuration = TimeSpan.FromMinutes(5);
-            })
-            .WithSerializer(new FusionCacheSystemTextJsonSerializer())
             .AsHybridCache();
 
         return builder.Services;
@@ -193,7 +176,7 @@ public static class Setup
 
         logger.LogInformation("Fetching products from hybrid cache for category '{Category}'", category);
 
-        // 👇 Use HybridCache to cache results with Redis as the second level
+        // 👇 Use HybridCache to cache results
         return await cache.GetOrCreateAsync(
             $"products:{category}", // 👈 It isn't good practice to use the user input as a key. It's only for demo purpose.
             async (token) => await GetProductsByCategory(category, dbContext, logger, context, token), // 👈 Use factory method to get the data.
