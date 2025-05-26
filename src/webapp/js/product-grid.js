@@ -74,6 +74,7 @@ class ProductGrid {
             v1: 'Products',
             v2: 'Products',
             v3: 'Products',
+            v4: 'Products',
             v5: 'Products'
         };
         
@@ -81,6 +82,7 @@ class ProductGrid {
             v1: 'bi-lightning-charge',
             v2: 'bi-clock-history',
             v3: 'bi-box',
+            v4: 'bi-layers',
             v5: 'bi-tag'
         };
         

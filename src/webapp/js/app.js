@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', function() {
         v1: 'Get products by category - without caching',
         v2: 'Get products by category - with response caching',
         v3: 'Get products by category - with output caching',
+        v4: 'Get products by category - with hybrid cache (fusion)',
         v5: 'Get products by category - ETag cache with Delta'
     };
 
@@ -21,6 +22,7 @@ document.addEventListener('DOMContentLoaded', function() {
             v1: 'Products (No Caching)',
             v2: 'Products (Response Cache)',
             v3: 'Products (Output Cache)',
+            v4: 'Products (Hybrid Cache)',
             v5: 'Products (ETag Caching)'
         };
         

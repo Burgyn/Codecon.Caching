@@ -6,7 +6,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Hybrid;
+using Microsoft.Extensions.Primitives;
 using Microsoft.Net.Http.Headers;
+using ZiggyCreatures.Caching.Fusion;
 
 namespace Codecon.Api.Features.Products;
 
@@ -24,10 +26,17 @@ public static class Setup
         //                 .AddNoCacheByRequestHeader());
         // });
 
-        return services
+        services
             .AddOutputCache() // 👈 Simply add the dependencies and use app.UseOutputCache() in Program.cs;
             .AddHttpContextAccessor()
             .AddResponseCaching(); // 👈 Add response caching services
+
+        //👇 Add FusionCache services (as HybridCache)
+        services
+            .AddFusionCache()
+            .AsHybridCache();
+
+        return services;
     }
 
     public static IEndpointRouteBuilder MapProducts(this IEndpointRouteBuilder app)
@@ -156,11 +165,20 @@ public static class Setup
             [FromServices] ILogger<AppDbContext> logger,
             [FromServices] IHttpContextAccessor context,
             [FromServices] HybridCache cache,
+            HttpRequest request,
             CancellationToken cancellationToken)
     {
+        // 👇 If the request contains a "no-cache" header, don't use HybridCache
+        if (request.Headers.TryGetValue(HeaderNames.CacheControl, out var value) &&
+            value.ToString().Contains("no-cache"))
+        {
+            return await GetProductsByCategory(category, dbContext, logger, context, cancellationToken);
+        }
+
         // 👇 Use HybridCache to cache results
         return await cache.GetOrCreateAsync($"products:{category}", // 👈 It isn't good practice to use the user input as a key, but it's fine for this demo
             async (token) => await GetProductsByCategory(category, dbContext, logger, context, token), // 👈 Use factory method to get the data
+            tags: ["products"],
             cancellationToken: cancellationToken);
     }
 
@@ -185,6 +203,7 @@ public static class Setup
     private static async Task<Results<Ok<string>, BadRequest<string>>> ClearAllCache(
         [FromServices] IOutputCacheStore cacheStore,
         [FromServices] ILogger<AppDbContext> logger,
+        [FromServices] IFusionCache cache,
         CancellationToken cancellationToken)
     {
         logger.LogInformation("Clearing all product caches");
@@ -192,6 +211,7 @@ public static class Setup
         try
         {
             await EvictProductCaches(cacheStore, null, cancellationToken);
+            await cache.RemoveByTagAsync(["products"], token: cancellationToken);
             return TypedResults.Ok("All product caches cleared successfully");
         }
         catch (Exception ex)
