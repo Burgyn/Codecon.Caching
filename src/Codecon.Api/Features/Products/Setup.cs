@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Net.Http.Headers;
 
 namespace Codecon.Api.Features.Products;
@@ -16,15 +17,15 @@ public static class Setup
         // 👇 Output cache policies
         // services.AddOutputCache(options =>
         // {
-        //     options.AddPolicy("Products", 
-        //         builder => 
+        //     options.AddPolicy("Products",
+        //         builder =>
         //             builder.Expire(TimeSpan.FromSeconds(50))
         //                 .Tag("products")
         //                 .AddNoCacheByRequestHeader());
         // });
 
         return services
-            .AddOutputCache() // 👈 Simply add the dependencies and use app.UseOutputCache() in Program.cs; 
+            .AddOutputCache() // 👈 Simply add the dependencies and use app.UseOutputCache() in Program.cs;
             .AddHttpContextAccessor()
             .AddResponseCaching(); // 👈 Add response caching services
     }
@@ -39,6 +40,7 @@ public static class Setup
             .MapProductsV1() // 👈 Without caching
             .MapProductsV2() // 👈 With response cache
             .MapProductsV3() // 👈 With output cache
+            .MapProductsV4() // 👈 With hybrid cache
             .MapProductsV5() // 👈 With etag caching
             .MapProductsUpdate() // 👈 Edit endpoint
             .MapCacheClear(); // 👈 Clear cache endpoint
@@ -76,6 +78,16 @@ public static class Setup
                     .Tag("products")
                     .AddNoCacheByRequestHeader());
         // .CacheOutput("Products") // 👈 Or use the predefined policy
+        return app;
+    }
+
+    private static IEndpointRouteBuilder MapProductsV4(this IEndpointRouteBuilder app)
+    {
+        //👇 With hybrid cache
+        app.MapGet("/v4", GetProductsByCategoryWithHybridCache)
+            .WithName("GetCachedProducts-v4")
+            .WithDescription("Get products by category - with Hybrid Cache");
+
         return app;
     }
 
@@ -136,7 +148,22 @@ public static class Setup
 
         return await GetProductsByCategory(category, dbContext, logger, context, cancellationToken);
     }
-    
+
+    private static async Task<Results<Ok<IEnumerable<Product>>, BadRequest<string>>>
+        GetProductsByCategoryWithHybridCache(
+            [FromQuery] string? category,
+            [FromServices] AppDbContext dbContext,
+            [FromServices] ILogger<AppDbContext> logger,
+            [FromServices] IHttpContextAccessor context,
+            [FromServices] HybridCache cache,
+            CancellationToken cancellationToken)
+    {
+        // 👇 Use HybridCache to cache results
+        return await cache.GetOrCreateAsync($"products:{category}", // 👈 It isn't good practice to use the user input as a key, but it's fine for this demo
+            async (token) => await GetProductsByCategory(category, dbContext, logger, context, token), // 👈 Use factory method to get the data
+            cancellationToken: cancellationToken);
+    }
+
     private static IEndpointRouteBuilder MapProductsUpdate(this IEndpointRouteBuilder app)
     {
         app.MapPut("/update/{id}", UpdateProduct)
