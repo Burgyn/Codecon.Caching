@@ -121,17 +121,6 @@ public static class Setup
         return app;
     }
 
-    private static IEndpointRouteBuilder MapProductsV5(this IEndpointRouteBuilder app)
-    {
-        //👇 With Delta ETag caching
-        app.MapGet("/v5", GetProductsByCategory)
-            .WithName("GetCachedProducts-v5")
-            .WithDescription("Get products by category - with ETag (Delta)")
-            .UseDelta(); // 👈 Use Delta middleware
-
-        return app;
-    }
-
     private static async Task<Results<Ok<IEnumerable<Product>>, BadRequest<string>>> GetProductsByCategory(
         [FromQuery] string? category,
         [FromServices] AppDbContext dbContext,
@@ -209,6 +198,17 @@ public static class Setup
             cancellationToken: cancellationToken);
     }
 
+    private static IEndpointRouteBuilder MapProductsV5(this IEndpointRouteBuilder app)
+    {
+        //👇 With Delta ETag caching
+        app.MapGet("/v5", GetProductsByCategory)
+            .WithName("GetCachedProducts-v5")
+            .WithDescription("Get products by category - with ETag (Delta)")
+            .UseDelta(); // 👈 Use Delta middleware
+
+        return app;
+    }
+
     private static IEndpointRouteBuilder MapProductsUpdate(this IEndpointRouteBuilder app)
     {
         app.MapPut("/update/{id}", UpdateProduct)
@@ -238,6 +238,7 @@ public static class Setup
         try
         {
             await EvictProductCaches(cacheStore, null, cancellationToken);
+            // 👇 Evict HybridCache by tag
             await hybridCache.RemoveByTagAsync(["products"], cancellationToken: cancellationToken);
             return TypedResults.Ok("All product caches cleared successfully");
         }
