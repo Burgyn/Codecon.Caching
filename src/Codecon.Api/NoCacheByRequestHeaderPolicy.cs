@@ -14,7 +14,6 @@ public class NoCacheByRequestHeaderPolicy : IOutputCachePolicy
         {
             context.AllowCacheLookup = false;
             context.AllowCacheStorage = false;
-            context.AllowLocking = false;
         }
 
         return ValueTask.CompletedTask;
