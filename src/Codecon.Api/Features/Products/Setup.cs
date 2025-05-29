@@ -125,7 +125,7 @@ public static class Setup
         [FromQuery] string? category,
         [FromServices] AppDbContext dbContext,
         [FromServices] ILogger<AppDbContext> logger,
-        [FromServices] IHttpContextAccessor context,
+        HttpResponse response,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(category))
@@ -150,25 +150,21 @@ public static class Setup
             [FromQuery] string? category,
             [FromServices] AppDbContext dbContext,
             [FromServices] ILogger<AppDbContext> logger,
-            [FromServices] IHttpContextAccessor context,
+            HttpResponse response,
             CancellationToken cancellationToken)
     {
-        if (context.HttpContext is not null)
+        response.GetTypedHeaders().CacheControl = new CacheControlHeaderValue
         {
-            context.HttpContext.Response.GetTypedHeaders().CacheControl = new CacheControlHeaderValue
-            {
-                Public = true,
-                MaxAge = TimeSpan.FromSeconds(50)
-            };
-            context.HttpContext.Response.Headers[HeaderNames.Vary] = "Accept-Encoding";
-            // In controller 👇
-            // [HttpGet]
-            // [ResponseCache(Duration = 20, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "Accept-Encoding" })]
-            // public async Task<IActionResult> Get(string category) { ... }
-            // 💁 Do not forget to add UseResponseCaching() in Program.cs
-        }
-
-        return await GetProductsByCategory(category, dbContext, logger, context, cancellationToken);
+            Public = true,
+            MaxAge = TimeSpan.FromSeconds(50)
+        };
+        response.Headers[HeaderNames.Vary] = "Accept-Encoding";
+        // In controller 👇
+        // [HttpGet]
+        // [ResponseCache(Duration = 20, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "Accept-Encoding" })]
+        // public async Task<IActionResult> Get(string category) { ... }
+        // 💁 Do not forget to add UseResponseCaching() in Program.cs
+        return await GetProductsByCategory(category, dbContext, logger, response, cancellationToken);
     }
 
     private static async Task<Results<Ok<IEnumerable<Product>>, BadRequest<string>>>
@@ -176,16 +172,16 @@ public static class Setup
             [FromQuery] string? category,
             [FromServices] AppDbContext dbContext,
             [FromServices] ILogger<AppDbContext> logger,
-            [FromServices] IHttpContextAccessor context,
             [FromServices] HybridCache cache,
             HttpRequest request,
+            HttpResponse response,
             CancellationToken cancellationToken)
     {
         // 👇 If the request contains a "no-cache" header, don't use HybridCache
         if (request.Headers.TryGetValue(HeaderNames.CacheControl, out var value) &&
             value.ToString().Contains("no-cache"))
         {
-            return await GetProductsByCategory(category, dbContext, logger, context, cancellationToken);
+            return await GetProductsByCategory(category, dbContext, logger, response, cancellationToken);
         }
 
         logger.LogInformation("Fetching products from hybrid cache for category '{Category}'", category);
@@ -193,7 +189,9 @@ public static class Setup
         // 👇 Use HybridCache to cache results
         return await cache.GetOrCreateAsync(
             $"products:{category}", // 👈 It isn't good practice to use the user input as a key. It's only for demo purpose.
-            async (token) => await GetProductsByCategory(category, dbContext, logger, context, token), // 👈 Use factory method to get the data.
+            async (token) =>
+                await GetProductsByCategory(category, dbContext, logger, response,
+                    token), // 👈 Use factory method to get the data.
             tags: ["products"], // 👈 Tag entry
             cancellationToken: cancellationToken);
     }
