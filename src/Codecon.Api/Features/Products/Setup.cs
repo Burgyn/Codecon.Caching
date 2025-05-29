@@ -67,6 +67,12 @@ public static class Setup
     private static IEndpointRouteBuilder MapProductsV2(this IEndpointRouteBuilder app)
     {
         //👇 With response caching
+        // 👉 Najjednoduchšia a najefektívnejšia metóda kešovania
+        // 👉 Využíva HTTP header `Cache-Control`
+        // 👉 Dáta sa kešujú u klienta (browser)
+        // 👉 UseResponseCaching() middleware pre kešovanie na strane servera
+        // 👉 Nevýhodou je nemožnosť rozumného invalidovania
+        // 👉 Obmedzené použitie. Len GET, HEAD request, bez autorizácie, …
         app.MapGet("/v2", GetProductsByCategoryWithResponseCache)
             .WithName("GetCachedProducts-v2")
             .WithDescription("Get products by category - with response caching");
@@ -76,6 +82,13 @@ public static class Setup
     private static IEndpointRouteBuilder MapProductsV3(this IEndpointRouteBuilder app)
     {
         //👇 With output caching
+        // 👉 Modernejšia náhrada za response caching od .NET 7
+        // 👉 Dáta sa kešujú na strane servera
+        // 👉 Máme to viac pod kontrolou pomocou vstavaných a vlastných policy
+        // 👉 Invalidácia cache pomocou IOutputCacheStore
+        // 👉 Invalidácia na základe tagov
+        // 👉 Jednoduché .CacheOutput() a app.UseOutputCache();
+        // 👉 Controllers -> [OutputCache]
         app.MapGet("/v3", GetProductsByCategory)
             .WithName("GetCachedProducts-v3")
             .WithDescription("Get products by category - with output caching")
@@ -92,6 +105,15 @@ public static class Setup
     private static IEndpointRouteBuilder MapProductsV4(this IEndpointRouteBuilder app)
     {
         //👇 With hybrid cache
+        // 👉 Hybrid cache zjednocuje API nad IMemoryCache a IDistributedCache rozhraniami
+        // 👉 Prináša podporu pre L1 a L2 keš
+        // 👉 Umožňuje tagovať záznamy v keši a jej invalidáciu na základe tagov
+        //  ⚠️ Invalidovať ešte nedokáže. Aktuálne možné len vďaka FusionCache
+        // 👉 FusionCache -> OpenSource cache
+        //   👉 Services.AddFusionCache().AsHybridCache()
+        //   👉 🛡️ Cache Stampede, 💣 Fail-Safe, 📢 Backplane,
+        //   👉 ↩️ Auto-Recovery, ⏱ Soft/Hard Timeouts, 🔀 L1+L2,
+        //   👉 🦅 Eager Refresh, Ⓜ️ Microsoft HybridCache, …
         app.MapGet("/v4", GetProductsByCategoryWithHybridCache)
             .WithName("GetCachedProducts-v4")
             .WithDescription("Get products by category - with Hybrid Cache");
@@ -117,7 +139,10 @@ public static class Setup
         [FromServices] IHttpContextAccessor context,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(category)) return TypedResults.BadRequest("Category parameter is required");
+        if (string.IsNullOrWhiteSpace(category))
+        {
+            return TypedResults.BadRequest("Category parameter is required");
+        }
 
         logger.LogInformation("Fetching products in category '{Category}'", category);
 
@@ -180,7 +205,7 @@ public static class Setup
         return await cache.GetOrCreateAsync(
             $"products:{category}", // 👈 It isn't good practice to use the user input as a key. It's only for demo purpose.
             async (token) => await GetProductsByCategory(category, dbContext, logger, context, token), // 👈 Use factory method to get the data.
-            tags: ["products"],
+            tags: ["products"], // 👈 Tag entry
             cancellationToken: cancellationToken);
     }
 
@@ -205,7 +230,7 @@ public static class Setup
     private static async Task<Results<Ok<string>, BadRequest<string>>> ClearAllCache(
         [FromServices] IOutputCacheStore cacheStore,
         [FromServices] ILogger<AppDbContext> logger,
-        [FromServices] IFusionCache cache,
+        [FromServices] HybridCache hybridCache,
         CancellationToken cancellationToken)
     {
         logger.LogInformation("Clearing all product caches");
@@ -213,7 +238,7 @@ public static class Setup
         try
         {
             await EvictProductCaches(cacheStore, null, cancellationToken);
-            await cache.RemoveByTagAsync(["products"], token: cancellationToken);
+            await hybridCache.RemoveByTagAsync(["products"], cancellationToken: cancellationToken);
             return TypedResults.Ok("All product caches cleared successfully");
         }
         catch (Exception ex)
@@ -232,7 +257,10 @@ public static class Setup
         await cacheStore.EvictByTagAsync("products", cancellationToken);
 
         // 👇 If a specific product ID is provided, also evict that product's tag
-        if (productId.HasValue) await cacheStore.EvictByTagAsync($"products:{productId}", cancellationToken);
+        if (productId.HasValue)
+        {
+            await cacheStore.EvictByTagAsync($"products:{productId}", cancellationToken);
+        }
     }
 
     private static async Task<Results<Ok<Product>, NotFound, BadRequest<string>>> UpdateProduct(
@@ -272,11 +300,9 @@ public static class Setup
         return TypedResults.Ok(product);
     }
 
-    public class UpdateProductRequest
-    {
-        public required string Name { get; set; }
-        public string? Description { get; set; }
-        public decimal Price { get; set; }
-        public required string Category { get; set; }
-    }
+    public record UpdateProductRequest(
+        string Name,
+        string? Description,
+        decimal Price,
+        string Category);
 }
