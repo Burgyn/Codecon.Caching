@@ -67,12 +67,12 @@ public static class Setup
     private static IEndpointRouteBuilder MapProductsV2(this IEndpointRouteBuilder app)
     {
         //👇 With response caching
-        // 👉 Najjednoduchšia a najefektívnejšia metóda kešovania
-        // 👉 Využíva HTTP header `Cache-Control`
-        // 👉 Dáta sa kešujú u klienta (browser)
-        // 👉 UseResponseCaching() middleware pre kešovanie na strane servera
-        // 👉 Nevýhodou je nemožnosť rozumného invalidovania
-        // 👉 Obmedzené použitie. Len GET, HEAD request, bez autorizácie, …
+        // 👉 The simplest and most effective caching method
+        // 👉 Uses HTTP header `Cache-Control`
+        // 👉 Data is cached on the client side (browser)
+        // 👉 UseResponseCaching() middleware for server-side caching
+        // 👉 The disadvantage is the inability to reasonably invalidate
+        // 👉 Limited use. Only GET, HEAD requests, without authorization, …
         app.MapGet("/v2", GetProductsByCategoryWithResponseCache)
             .WithName("GetCachedProducts-v2")
             .WithDescription("Get products by category - with response caching");
@@ -82,12 +82,12 @@ public static class Setup
     private static IEndpointRouteBuilder MapProductsV3(this IEndpointRouteBuilder app)
     {
         //👇 With output caching
-        // 👉 Modernejšia náhrada za response caching od .NET 7
-        // 👉 Dáta sa kešujú na strane servera
-        // 👉 Máme to viac pod kontrolou pomocou vstavaných a vlastných policy
-        // 👉 Invalidácia cache pomocou IOutputCacheStore
-        // 👉 Invalidácia na základe tagov
-        // 👉 Jednoduché .CacheOutput() a app.UseOutputCache();
+        // 👉 More modern replacement for response caching since .NET 7
+        // 👉 Data is cached on the server side
+        // 👉 We have more control through built-in and custom policies
+        // 👉 Cache invalidation using IOutputCacheStore
+        // 👉 Invalidation based on tags
+        // 👉 Simple .CacheOutput() and app.UseOutputCache();
         // 👉 Controllers -> [OutputCache]
         app.MapGet("/v3", GetProductsByCategory)
             .WithName("GetCachedProducts-v3")
@@ -105,18 +105,43 @@ public static class Setup
     private static IEndpointRouteBuilder MapProductsV4(this IEndpointRouteBuilder app)
     {
         //👇 With hybrid cache
-        // 👉 Hybrid cache zjednocuje API nad IMemoryCache a IDistributedCache rozhraniami
-        // 👉 Prináša podporu pre L1 a L2 keš
-        // 👉 Umožňuje tagovať záznamy v keši a jej invalidáciu na základe tagov
-        //  ⚠️ Invalidovať ešte nedokáže. Aktuálne možné len vďaka FusionCache
+        // 👉 Hybrid cache unifies the API over IMemoryCache and IDistributedCache interfaces
+        // 👉 Brings support for L1 and L2 cache
+        // 👉 Allows tagging cache entries and invalidation based on tags
+        //  ⚠️ Cannot invalidate yet. Currently possible only thanks to FusionCache
         // 👉 FusionCache -> OpenSource cache
         //   👉 Services.AddFusionCache().AsHybridCache()
-        //   👉 🛡️ Cache Stampede, 💣 Fail-Safe, 📢 Backplane,
-        //   👉 ↩️ Auto-Recovery, ⏱ Soft/Hard Timeouts, 🔀 L1+L2,
+        //   👉 🛡️ Cache Stampede, 💣 Fail-Safe, ⏱ Soft/Hard Timeouts,
+        //   👉 ↩️ Auto-Recovery, 🔀 L1+L2, 📢 Backplane,
         //   👉 🦅 Eager Refresh, Ⓜ️ Microsoft HybridCache, …
         app.MapGet("/v4", GetProductsByCategoryWithHybridCache)
             .WithName("GetCachedProducts-v4")
             .WithDescription("Get products by category - with Hybrid Cache");
+
+        return app;
+    }
+
+    private static IEndpointRouteBuilder MapProductsV5(this IEndpointRouteBuilder app)
+    {
+        //👇 With Delta ETag caching
+        // 👉 ETag cache use 304 Not Modified response and headers ETag / If-None-Match
+        // Client               Server
+        //  │                    │
+        //  ├── GET /item ─────▶ │
+        //  │                    ├── 200 OK + ETag: "abc123"
+        //  │ ◀──────────────────┘
+        //  ├── GET /item
+        //  │    If-None-Match: "abc123"
+        //  │                    ├── 304 Not Modified
+        //  │ ◀──────────────────┘
+        // 🙋 "Frequency of updates to data is relatively low compared to reads"
+        // 👉 Framework Delta use
+        // 👉 services.AddScoped(_ => new NpgsqlConnection(connectionString));
+        // 👉 .UseDelta();
+        app.MapGet("/v5", GetProductsByCategory)
+            .WithName("GetCachedProducts-v5")
+            .WithDescription("Get products by category - with ETag (Delta)")
+            .UseDelta(); // 👈 Use Delta middleware
 
         return app;
     }
@@ -194,17 +219,6 @@ public static class Setup
                     token), // 👈 Use factory method to get the data.
             tags: ["products"], // 👈 Tag entry
             cancellationToken: cancellationToken);
-    }
-
-    private static IEndpointRouteBuilder MapProductsV5(this IEndpointRouteBuilder app)
-    {
-        //👇 With Delta ETag caching
-        app.MapGet("/v5", GetProductsByCategory)
-            .WithName("GetCachedProducts-v5")
-            .WithDescription("Get products by category - with ETag (Delta)")
-            .UseDelta(); // 👈 Use Delta middleware
-
-        return app;
     }
 
     private static IEndpointRouteBuilder MapProductsUpdate(this IEndpointRouteBuilder app)
