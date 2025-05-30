@@ -193,7 +193,7 @@ public static class Setup
         // [HttpGet]
         // [ResponseCache(Duration = 20, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "Accept-Encoding" })]
         // public async Task<IActionResult> Get(string category) { ... }
-        // 💁 Do not forget to add UseResponseCaching() in Program.cs
+        // 💁 Use app.UseResponseCaching() in Program.cs for server caching
         return await GetProductsByCategory(category, dbContext, logger, response, cancellationToken);
     }
 
