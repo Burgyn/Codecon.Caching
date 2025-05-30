@@ -15,6 +15,10 @@ class ProductGrid {
         this.requestTimingElement = document.getElementById('request-timing');
         this.disableCacheCheckbox = document.getElementById('disable-cache-checkbox');
         
+        // Debounce mechanism to prevent duplicate searches
+        this.lastSearchTime = 0;
+        this.debounceDelay = 100; // 100ms debounce
+        
         // Initialize the grid
         this.init();
     }
@@ -27,17 +31,10 @@ class ProductGrid {
         
         // Add event listener for search button
         const searchButton = document.getElementById('search-button');
-        const searchInput = document.getElementById('search-input');
         
         searchButton.addEventListener('click', () => {
+            const searchInput = document.getElementById('search-input');
             this.searchProducts(searchInput.value);
-        });
-        
-        // Add event listener for Enter key in search input
-        searchInput.addEventListener('keyup', (event) => {
-            if (event.key === 'Enter') {
-                this.searchProducts(searchInput.value);
-            }
         });
         
         // Add event listener for clear cache button
@@ -116,6 +113,14 @@ class ProductGrid {
      * @param {string} category - The category to search for
      */
     searchProducts(category) {
+        // Debounce to prevent duplicate calls
+        const now = Date.now();
+        if (now - this.lastSearchTime < this.debounceDelay) {
+            console.log('Search request debounced - too soon after last request');
+            return;
+        }
+        this.lastSearchTime = now;
+        
         if (!category || category.trim() === '') {
             this.showToast('Please enter a category to search', 'warning');
             return;
