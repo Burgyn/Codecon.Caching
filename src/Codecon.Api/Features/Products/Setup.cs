@@ -73,6 +73,8 @@ public static class Setup
         // 👉 UseResponseCaching() middleware for server-side caching
         // 👉 The disadvantage is the inability to reasonably invalidate
         // 👉 Limited use. Only GET, HEAD requests, without authorization, …
+        // 👉 ⚠️ Cache-Control: public/private → controls if cache is shared or browser-only
+        //   (e.g. Cache-Control: public/private, max-age=50)
         app.MapGet("/v2", GetProductsByCategoryWithResponseCache)
             .WithName("GetCachedProducts-v2")
             .WithDescription("Get products by category - with response caching");
