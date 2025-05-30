@@ -135,9 +135,12 @@ public static class Setup
         //  │                    ├── 304 Not Modified
         //  │ ◀──────────────────┘
         // 🙋 "Frequency of updates to data is relatively low compared to reads"
-        // 👉 Framework Delta use
-        // 👉 services.AddScoped(_ => new NpgsqlConnection(connectionString));
-        // 👉 .UseDelta();
+        // 👉 The Delta framework uses DB change tracking
+        //    (transaction log or row version in MS SQL, and track_commit_timestamp in Postgres).
+        // 👇 Super easy to use:
+        //   👉 Add the connection string to DI: services.AddScoped(_ => new NpgsqlConnection(connectionString));
+        //   👉 Apply the Delta endpoint filter to your
+        //      endpoint, endpoint group, or the entire application (as middleware) using .UseDelta();
         app.MapGet("/v5", GetProductsByCategory)
             .WithName("GetCachedProducts-v5")
             .WithDescription("Get products by category - with ETag (Delta)")
@@ -249,9 +252,7 @@ public static class Setup
 
         try
         {
-            await EvictProductCaches(cacheStore, null, cancellationToken);
-            // 👇 Evict HybridCache by tag
-            await hybridCache.RemoveByTagAsync(["products"], cancellationToken: cancellationToken);
+            await EvictProductCaches(cacheStore, hybridCache, null, cancellationToken);
             return TypedResults.Ok("All product caches cleared successfully");
         }
         catch (Exception ex)
@@ -263,6 +264,7 @@ public static class Setup
 
     private static async Task EvictProductCaches(
         IOutputCacheStore cacheStore,
+        HybridCache hybridCache,
         int? productId,
         CancellationToken cancellationToken)
     {
@@ -274,6 +276,9 @@ public static class Setup
         {
             await cacheStore.EvictByTagAsync($"products:{productId}", cancellationToken);
         }
+
+        // 👇 Evict HybridCache by tag
+        await hybridCache.RemoveByTagAsync(["products"], cancellationToken: cancellationToken);
     }
 
     private static async Task<Results<Ok<Product>, NotFound, BadRequest<string>>> UpdateProduct(
@@ -282,6 +287,7 @@ public static class Setup
         [FromServices] AppDbContext dbContext,
         [FromServices] ILogger<AppDbContext> logger,
         [FromServices] IOutputCacheStore cacheStore,
+        [FromServices] HybridCache hybridCache,
         CancellationToken cancellationToken)
     {
         logger.LogInformation("Updating product with ID: {Id}", id);
@@ -307,7 +313,7 @@ public static class Setup
         }
         finally
         {
-            await EvictProductCaches(cacheStore, id, cancellationToken);
+            await EvictProductCaches(cacheStore, hybridCache, id, cancellationToken);
         }
 
         return TypedResults.Ok(product);
