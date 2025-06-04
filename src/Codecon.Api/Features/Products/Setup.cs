@@ -98,7 +98,7 @@ public static class Setup
             .CacheOutput(policy =>
                 policy
                     .Expire(TimeSpan.FromSeconds(50))
-                    .Tag("products")
+                    .Tag("products") // 👈 Tag cache entry. We can use multiple tags e.g: ["all", "products", $"products:{category}", ...]
                     .AddNoCacheByRequestHeader());
         // .CacheOutput("Products") // 👈 Or use the predefined policy
         return app;
@@ -114,7 +114,7 @@ public static class Setup
         // 👉 FusionCache -> OpenSource cache
         //   👉 Services.AddFusionCache().AsHybridCache()
         //   👉 🛡️ Cache Stampede, 💣 Fail-Safe, ⏱ Soft/Hard Timeouts,
-        //   👉 ↩️ Auto-Recovery, 🔀 L1+L2, 📢 Backplane,
+        //   👉 📢 Backplane, ↩️ Auto-Recovery, 🔀 L1+L2,
         //   👉 🦅 Eager Refresh, Ⓜ️ Microsoft HybridCache, …
         app.MapGet("/v4", GetProductsByCategoryWithHybridCache)
             .WithName("GetCachedProducts-v4")
@@ -222,7 +222,7 @@ public static class Setup
             async (token) =>
                 await GetProductsByCategory(category, dbContext, logger, response,
                     token), // 👈 Use factory method to get the data.
-            tags: ["products"], // 👈 Tag entry
+            tags: ["products", $"products:{category}"], // 👈 Tag entry
             cancellationToken: cancellationToken);
     }
 
